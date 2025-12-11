@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maps - BuenaVisit</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/maps.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="images/logo/buenavisit-logo.png" alt="BuenaVisit Logo" onerror="this.style.display='none'">
+                <span class="logo-text">BuenaVisit</span>
+            </div>
+            
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="places.html"><i class="fas fa-map-marker-alt"></i> Places</a></li>
+                <li><a href="maps.html" class="active"><i class="fas fa-map"></i> Maps</a></li>
+                <li><a href="transport.html"><i class="fas fa-bus"></i> Transport</a></li>
+                <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Maps Page -->
+    <div class="maps-page">
+        <!-- Search Bar -->
+        <div class="maps-search">
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search places in Buenavista...">
+                <button class="btn btn-primary" onclick="startVirtualTour()">
+                    <i class="fas fa-play"></i> Start Virtual Tour
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterPlaces('all')">All Places</button>
+            <button class="filter-tab" onclick="filterPlaces('cultural')">Cultural Sites</button>
+            <button class="filter-tab" onclick="filterPlaces('beaches')">Beaches</button>
+            <button class="filter-tab" onclick="filterPlaces('food')">Food Spots</button>
+            <button class="filter-tab" onclick="filterPlaces('nature')">Nature Parks</button>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-wrapper">
+            <div id="map" class="interactive-map"></div>
+
+            <!-- Map Legend -->
+            <div class="map-legend">
+                <h3>Legend</h3>
+                <div class="legend-item">
+                    <span class="legend-icon" style="background: #2d7d4e;">📍</span>
+                    <span>4 Places to Visit</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-icon" style="background: #f59e0b;">📅</span>
+                    <span>2 Events Today</span>
+                </div>
+            </div>
+
+            <!-- Current Location Indicator -->
+            <div class="location-indicator">
+                <span class="location-dot"></span>
+                <span>You are here</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Place Info Card (appears when marker is clicked) -->
+    <div class="place-info-card" id="placeInfoCard">
+        <button class="close-card" onclick="closePlaceCard()">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="cardImage" src="" alt="">
+        <div class="card-content">
+            <h3 id="cardTitle"></h3>
+            <p id="cardDistance"></p>
+            <p id="cardDescription"></p>
+            <button class="btn btn-primary btn-sm" onclick="getDirections()">
+                <i class="fas fa-directions"></i> Get Directions
+            </button>
+        </div>
+    </div>
+
+    <!-- Chat Button -->
+    <button class="chat-fab" onclick="openChat()">
+        <i class="fas fa-comment"></i>
+    </button>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/maps.js"></script>
+</body>
+</html>
+
+

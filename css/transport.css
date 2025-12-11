@@ -1,0 +1,352 @@
+/* Transport Page Styles */
+
+body {
+    overflow-x: hidden;
+}
+
+.transport-hero {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.transport-hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.transport-hero p {
+    font-size: 1.2rem;
+    opacity: 0.95;
+}
+
+/* Book Transport Section */
+.book-transport {
+    padding: 60px 20px;
+    background: var(--bg-light);
+}
+
+.booking-card {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+}
+
+.booking-card h2 {
+    font-size: 1.8rem;
+    margin-bottom: 30px;
+    color: var(--text-dark);
+    text-align: center;
+}
+
+.booking-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select {
+    padding: 12px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* Transport Options */
+.transport-options {
+    padding: 80px 20px;
+    background: white;
+}
+
+.transport-options h2 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 50px;
+    color: var(--text-dark);
+}
+
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.transport-card {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.transport-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-color);
+}
+
+.transport-card.featured {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.featured-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: var(--primary-color);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.transport-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+}
+
+.transport-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--text-dark);
+}
+
+.transport-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.transport-desc {
+    color: var(--text-light);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.transport-features {
+    list-style: none;
+    text-align: left;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.transport-features li {
+    padding: 8px 0;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.transport-features i {
+    color: var(--success-color);
+}
+
+/* Transport Tips */
+.transport-tips {
+    padding: 80px 20px;
+    background: var(--bg-light);
+}
+
+.transport-tips h2 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 50px;
+    color: var(--text-dark);
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.tip-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.tip-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.tip-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.tip-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    color: var(--text-dark);
+}
+
+.tip-card p {
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+/* Transport Contact */
+.transport-contact {
+    padding: 60px 20px;
+    background: white;
+}
+
+.contact-card {
+    max-width: 600px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    padding: 50px 40px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+}
+
+.contact-card h2 {
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+}
+
+.contact-card p {
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+    opacity: 0.95;
+}
+
+.contact-info {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    font-size: 1.1rem;
+}
+
+.contact-item i {
+    font-size: 1.3rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .transport-hero h1 {
+        font-size: 2rem;
+    }
+
+    .transport-hero p {
+        font-size: 1rem;
+    }
+
+    .booking-card {
+        padding: 30px 20px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .transport-options,
+    .transport-tips {
+        padding: 60px 20px;
+    }
+
+    .transport-options h2,
+    .transport-tips h2 {
+        font-size: 1.7rem;
+    }
+
+    .contact-card {
+        padding: 40px 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .transport-hero {
+        padding: 40px 20px;
+    }
+
+    .transport-hero h1 {
+        font-size: 1.6rem;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .booking-card {
+        padding: 25px 15px;
+    }
+
+    .options-grid,
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .contact-item {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+

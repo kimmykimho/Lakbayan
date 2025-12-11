@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Tourism Office</title>
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="sidebar-header">
+            <img src="../images/logo/buenavisit-logo.png" alt="Logo" class="sidebar-logo" onerror="this.style.display='none'">
+            <div class="sidebar-title">
+                <h2>Tourism Office</h2>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item active">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="users.html" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="places.html" class="nav-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Places</span>
+            </a>
+            <a href="businesses.html" class="nav-item">
+                <i class="fas fa-briefcase"></i>
+                <span>Businesses</span>
+            </a>
+            <a href="analytics.html" class="nav-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="events.html" class="nav-item">
+                <i class="fas fa-calendar"></i>
+                <span>Events</span>
+            </a>
+            <a href="reports.html" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Tourism Reports</span>
+            </a>
+            <a href="permits.html" class="nav-item">
+                <i class="fas fa-certificate"></i>
+                <span>Permits & Licenses</span>
+            </a>
+            <a href="support.html" class="nav-item">
+                <i class="fas fa-headset"></i>
+                <span>Tourist Support</span>
+            </a>
+            <a href="reviews.html" class="nav-item">
+                <i class="fas fa-star"></i>
+                <span>Reviews</span>
+            </a>
+            <a href="settings.html" class="nav-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-sidebar-toggle" id="mobileSidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <!-- Top Bar -->
+        <div class="admin-topbar">
+            <div class="topbar-left">
+                <h1>Dashboard Overview</h1>
+                <p class="last-updated">Last updated: <span id="lastUpdated">4/23/2025, 3:37:39 PM</span></p>
+            </div>
+            <div class="topbar-right">
+                <button class="btn btn-outline" onclick="window.location.href='../index.html'">
+                    <i class="fas fa-eye"></i> View Public Site
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <p class="stat-label">Total Visitors</p>
+                    <h2 class="stat-value">2,450</h2>
+                    <p class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i> +12.5%
+                    </p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="stat-content">
+                    <p class="stat-label">Active Bookings</p>
+                    <h2 class="stat-value">156</h2>
+                    <p class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i> +8.3%
+                    </p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <p class="stat-label">Active Places</p>
+                    <h2 class="stat-value">12</h2>
+                    <p class="stat-change neutral">
+                        <i class="fas fa-minus"></i> No change
+                    </p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stat-content">
+                    <p class="stat-label">Avg. Rating</p>
+                    <h2 class="stat-value">4.7</h2>
+                    <p class="stat-change positive">
+                        <i class="fas fa-arrow-up"></i> +0.2
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <!-- Visitor Traffic Chart -->
+            <div class="chart-card large">
+                <div class="card-header">
+                    <h3>Visitor Traffic</h3>
+                    <div class="chart-legend">
+                        <span class="legend-item">
+                            <span class="legend-dot" style="background: #22c55e;"></span>
+                            Today
+                        </span>
+                        <span class="legend-item">
+                            <span class="legend-dot" style="background: #3b82f6;"></span>
+                            This Week
+                        </span>
+                    </div>
+                </div>
+                <canvas id="trafficChart"></canvas>
+
+                <!-- Weekly Stats -->
+                <div class="weekly-stats">
+                    <div class="week-day">
+                        <span class="day-label">Mon</span>
+                        <span class="day-value">450</span>
+                    </div>
+                    <div class="week-day">
+                        <span class="day-label">Tue</span>
+                        <span class="day-value">520</span>
+                    </div>
+                    <div class="week-day">
+                        <span class="day-label">Wed</span>
+                        <span class="day-value">580</span>
+                    </div>
+                    <div class="week-day">
+                        <span class="day-label">Thu</span>
+                        <span class="day-value">620</span>
+                    </div>
+                    <div class="week-day">
+                        <span class="day-label">Fri</span>
+                        <span class="day-value">750</span>
+                    </div>
+                    <div class="week-day">
+                        <span class="day-label">Sat</span>
+                        <span class="day-value">890</span>
+                    </div>
+                    <div class="week-day">
+                        <span class="day-label">Sun</span>
+                        <span class="day-value">920</span>
+                    </div>
+                </div>
+
+                <!-- Peak Hours -->
+                <div class="peak-hours">
+                    <div class="peak-item">
+                        <h4>Weekday Peak</h4>
+                        <p>2PM - 4PM</p>
+                    </div>
+                    <div class="peak-item">
+                        <h4>Weekend Peak</h4>
+                        <p>4PM - 6PM</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Activity Report -->
+            <div class="chart-card small">
+                <div class="card-header">
+                    <h3>User Activity Report</h3>
+                </div>
+                <div class="activity-stats">
+                    <div class="activity-stat">
+                        <h2>245</h2>
+                        <p>Active Users</p>
+                    </div>
+                    <div class="activity-stat">
+                        <h2>28</h2>
+                        <p>New This Week</p>
+                    </div>
+                    <div class="activity-stat">
+                        <h2>3.5</h2>
+                        <p>Avg Visits/User</p>
+                    </div>
+                </div>
+
+                <!-- Recent Bookings -->
+                <div class="recent-section">
+                    <h4>Recent Bookings</h4>
+                    <div class="recent-list">
+                        <div class="recent-item">
+                            <div class="recent-icon">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="recent-info">
+                                <p class="recent-name">Mark Anthony</p>
+                                <p class="recent-place">Manlangit Nature's Park</p>
+                                <p class="recent-visitors">3 visitors</p>
+                            </div>
+                            <span class="recent-status confirmed">confirmed</span>
+                        </div>
+
+                        <div class="recent-item">
+                            <div class="recent-icon">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="recent-info">
+                                <p class="recent-name">Sarah Smith</p>
+                                <p class="recent-place">Masao Beach</p>
+                                <p class="recent-visitors">2 visitors</p>
+                            </div>
+                            <span class="recent-status pending">pending</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Visits -->
+                <div class="recent-section">
+                    <h4>Recent Visits</h4>
+                    <div class="recent-list">
+                        <div class="recent-item">
+                            <div class="recent-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="recent-info">
+                                <p class="recent-name">Juan Dela Cruz</p>
+                                <p class="recent-place">Municipal Plaza</p>
+                                <p class="recent-date">2024-01-21</p>
+                            </div>
+                            <span class="recent-rating">
+                                <i class="fas fa-star"></i> 4.5
+                            </span>
+                        </div>
+
+                        <div class="recent-item">
+                            <div class="recent-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="recent-info">
+                                <p class="recent-name">Maria Santos</p>
+                                <p class="recent-place">Manlangit Nature's Park</p>
+                                <p class="recent-date">2024-01-20</p>
+                            </div>
+                            <span class="recent-rating">
+                                <i class="fas fa-star"></i> 5
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Recent Activity -->
+        <div class="bottom-section">
+            <div class="quick-actions-card">
+                <h3>Quick Actions</h3>
+                <div class="actions-grid">
+                    <button class="action-btn" onclick="location.href='places.html'">
+                        <i class="fas fa-plus"></i>
+                        <span>Add Place</span>
+                    </button>
+                    <button class="action-btn" onclick="location.href='users.html'">
+                        <i class="fas fa-users"></i>
+                        <span>Manage Users</span>
+                    </button>
+                    <button class="action-btn" onclick="location.href='reports.html'">
+                        <i class="fas fa-file-alt"></i>
+                        <span>View Reports</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="recent-activity-card">
+                <h3>Recent Activity</h3>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="activity-content">
+                            <p><strong>John Doe</strong> booked a visit to Manlangit Park</p>
+                            <span class="activity-time">10:30:00 AM</span>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="activity-content">
+                            <p><strong>Maria Santos</strong> left a review for Masao Beach</p>
+                            <span class="activity-time">9:15:00 AM</span>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="activity-content">
+                            <p><strong>James Wilson</strong> registered new business account</p>
+                            <span class="activity-time">8:45:00 AM</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pending-reports-card">
+                <h3>Pending Reports</h3>
+                <div class="reports-list">
+                    <div class="report-item">
+                        <p class="report-title">Monthly Visitor Analysis</p>
+                        <p class="report-due">Due: 2024-01-25</p>
+                    </div>
+                    <div class="report-item">
+                        <p class="report-title">Business Performance Review</p>
+                        <p class="report-due">Due: 2024-01-26</p>
+                    </div>
+                    <div class="report-item">
+                        <p class="report-title">Place Maintenance Schedule</p>
+                        <p class="report-due">Due: 2024-01-28</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../js/main.js"></script>
+    <script src="../js/admin.js"></script>
+    <script src="../js/admin-dashboard.js"></script>
+</body>
+</html>
+
+

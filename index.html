@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuenaVisit - Discover Buenavista, Agusan del Sur</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/home.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="images/logo/buenavisit-logo.png" alt="BuenaVisit Logo" onerror="this.style.display='none'">
+                <span class="logo-text">BuenaVisit</span>
+            </div>
+            
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html" class="active"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="places.html"><i class="fas fa-map-marker-alt"></i> Places</a></li>
+                <li><a href="maps.html"><i class="fas fa-map"></i> Maps</a></li>
+                <li><a href="transport.html"><i class="fas fa-bus"></i> Transport</a></li>
+                <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Weather Banner -->
+    <div class="weather-banner" id="weatherBanner">
+        <div class="weather-content">
+            <span class="weather-icon">🌤️</span>
+            <span class="weather-text">34°C | AI suggests visiting Manlangit Nature's Park for a cooler escape!</span>
+        </div>
+        <button class="weather-action" onclick="showSuggestions()">View Suggestions</button>
+        <button class="weather-close" onclick="hideWeatherBanner()">Hide Suggestions</button>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-header">
+            <img src="images/logo/buenavisit-logo.png" alt="BuenaVisit" class="hero-logo" onerror="this.style.display='none'">
+            <div class="hero-title">
+                <h1>Discover <span class="highlight">Buenavista</span></h1>
+                <p class="hero-subtitle">Your Pocket Guide to Great Getaways</p>
+            </div>
+        </div>
+
+        <div class="carousel-container">
+            <div class="carousel" id="heroCarousel">
+                <!-- Slide 1 -->
+                <div class="carousel-slide active">
+                    <img src="images/hero/masao-beach.jpg" alt="Masao Public Beach" onerror="this.src='images/placeholder.jpg'">
+                    <div class="carousel-caption">
+                        <h2>Masao Public Beach</h2>
+                        <p>Popular local beach perfect for family gatherings and weekend relaxation.</p>
+                        <div class="carousel-actions">
+                            <button class="btn btn-primary" onclick="visitPlace('masao-beach')">Visit Now</button>
+                            <button class="btn btn-secondary" onclick="learnMore('masao-beach')">Learn More</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 2 -->
+                <div class="carousel-slide">
+                    <img src="images/hero/manlangit-park.jpg" alt="Manlangit Nature's Park" onerror="this.src='images/placeholder.jpg'">
+                    <div class="carousel-caption">
+                        <h2>Manlangit Nature's Park</h2>
+                        <p>Manlangit Nature Park is one of the most beautiful view deck in Buenavista, Agusan del Norte, Philippines.</p>
+                        <div class="carousel-actions">
+                            <button class="btn btn-primary" onclick="visitPlace('manlangit-park')">Visit Now</button>
+                            <button class="btn btn-secondary" onclick="learnMore('manlangit-park')">Learn More</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide 3 -->
+                <div class="carousel-slide">
+                    <img src="images/hero/municipal-plaza.jpg" alt="Buenavista Municipal Plaza" onerror="this.src='images/placeholder.jpg'">
+                    <div class="carousel-caption">
+                        <h2>Buenavista Municipal Plaza</h2>
+                        <p>The heart of our community featuring the historic town plaza and St. Joseph Parish Church.</p>
+                        <div class="carousel-actions">
+                            <button class="btn btn-primary" onclick="visitPlace('municipal-plaza')">Visit Now</button>
+                            <button class="btn btn-secondary" onclick="learnMore('municipal-plaza')">Learn More</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="carousel-btn prev" onclick="prevSlide()"><i class="fas fa-chevron-left"></i></button>
+            <button class="carousel-btn next" onclick="nextSlide()"><i class="fas fa-chevron-right"></i></button>
+
+            <div class="carousel-dots" id="carouselDots"></div>
+        </div>
+    </section>
+
+    <!-- Most Visited Places -->
+    <section class="most-visited-section">
+        <div class="container">
+            <div class="section-header">
+                <div>
+                    <h2>Most Visited Places</h2>
+                    <p class="section-subtitle">Real-time popularity based on current visits</p>
+                </div>
+                <div class="update-indicator">
+                    <span class="update-dot"></span>
+                    <span>Updated just now</span>
+                </div>
+            </div>
+
+            <div class="places-list">
+                <!-- Place 1 -->
+                <div class="place-card" onclick="showPlaceDetails('manlangit')">
+                    <img src="images/places/manlangit-nature-park/main.jpg" alt="Manlangit Nature's Park" onerror="this.src='images/placeholder.jpg'">
+                    <div class="place-info">
+                        <div class="place-header">
+                            <h3>Manlangit Nature's Park</h3>
+                            <span class="popularity-badge positive">+25%</span>
+                        </div>
+                        <div class="place-stats">
+                            <span class="visitor-count"><i class="fas fa-users"></i> 85 people are here</span>
+                            <span class="best-time">Best time: 6:00 AM - 9:00 AM</span>
+                        </div>
+                        <div class="place-meta">
+                            <span class="total-visits">Total Visits: 1,500</span>
+                            <span class="best-time-label">Best Time: Early Morning</span>
+                            <span class="current-load">Current Load: 85%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 85%"></div>
+                        </div>
+                        <p class="comparison">vs last week</p>
+                    </div>
+                </div>
+
+                <!-- Place 2 -->
+                <div class="place-card" onclick="showPlaceDetails('masao')">
+                    <img src="images/places/masao-public-beach/main.jpg" alt="Masao Public Beach" onerror="this.src='images/placeholder.jpg'">
+                    <div class="place-info">
+                        <div class="place-header">
+                            <h3>Masao Public Beach</h3>
+                            <span class="popularity-badge positive">+23%</span>
+                        </div>
+                        <div class="place-stats">
+                            <span class="visitor-count"><i class="fas fa-users"></i> 78 people are here</span>
+                            <span class="best-time">Best time: 3:00 PM - 5:00 PM</span>
+                        </div>
+                        <div class="place-meta">
+                            <span class="total-visits">Total Visits: 1,200</span>
+                            <span class="best-time-label">Best Time: Late Afternoon</span>
+                            <span class="current-load">Current Load: 65%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 65%"></div>
+                        </div>
+                        <p class="comparison">vs last week</p>
+                    </div>
+                </div>
+
+                <!-- Place 3 -->
+                <div class="place-card" onclick="showPlaceDetails('plaza')">
+                    <img src="images/places/municipal-plaza/main.jpg" alt="Buenavista Municipal Plaza" onerror="this.src='images/placeholder.jpg'">
+                    <div class="place-info">
+                        <div class="place-header">
+                            <h3>Buenavista Municipal Plaza</h3>
+                            <span class="popularity-badge positive">+10%</span>
+                        </div>
+                        <div class="place-stats">
+                            <span class="visitor-count"><i class="fas fa-users"></i> 45 people are here</span>
+                            <span class="best-time">Best time: 4:00 PM - 6:00 PM</span>
+                        </div>
+                        <div class="place-meta">
+                            <span class="total-visits">Total Visits: 980</span>
+                            <span class="best-time-label">Best Time: Evening</span>
+                            <span class="current-load">Current Load: 45%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 45%"></div>
+                        </div>
+                        <p class="comparison">vs last week</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-actions">
+                <button class="btn btn-primary" onclick="location.href='places.html'">Book Now</button>
+                <button class="btn btn-outline" onclick="location.href='places.html'">View All Places</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Chat Button -->
+    <button class="chat-fab" onclick="openChat()">
+        <i class="fas fa-comment"></i>
+    </button>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>BuenaVisit</h3>
+                    <p>Your guide to exploring Buenavista, Agusan del Sur</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="places.html">Places</a></li>
+                        <li><a href="maps.html">Maps</a></li>
+                        <li><a href="transport.html">Transport</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Tourism Office, Buenavista</p>
+                    <p>Agusan del Sur, Philippines</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 BuenaVisit Tourism Platform. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/home.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,33 @@
+# Copy this file to .env and fill in your values
+
+# Supabase Configuration
+SUPABASE_URL=https://hcorhxpinogbcqrlbrvj.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjb3JoeHBpbm9nYmNxcmxicnZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEwMjMsImV4cCI6MjA4MDg2NzAyM30.sAszIPEOThdDJoH4GxXIDNONShIQj3qWL8K3g2MN0nE
+# Service Role Key (bypasses RLS - for server-side operations like OAuth user creation)
+# Get this from: Supabase Dashboard > Settings > API > service_role key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# JWT Secret (Generate with: npm run generate-secret)
+JWT_SECRET=your-secret-key-here
+JWT_EXPIRE=7d
+
+# Server Configuration
+NODE_ENV=development
+PORT=5000
+
+# External API Keys 
+OPENWEATHER_API_KEY=key_here
+FOURSQUARE_API_KEY=key_here
+OPENROUTESERVICE_API_KEY=key_here
+
+# Buenavista Default Coordinates
+DEFAULT_LAT=8.9600
+DEFAULT_LNG=125.4300
+
+# Google reCAPTCHA Configuration
+RECAPTCHA_SITE_KEY=6Lf4VSYsAAAAAKtCyKa1ecfs7Z-D-c6mySQrVr2b
+RECAPTCHA_SECRET_KEY=6Lf4VSYsAAAAAAuFxsgnApfpVfzS7zAz4aNjssjq
+
+# Supabase Configuration (for frontend OAuth - same values as backend)
+VITE_SUPABASE_URL=https://hcorhxpinogbcqrlbrvj.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhjb3JoeHBpbm9nYmNxcmxicnZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyOTEwMjMsImV4cCI6MjA4MDg2NzAyM30.sAszIPEOThdDJoH4GxXIDNONShIQj3qWL8K3g2MN0nE

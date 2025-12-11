@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - BuenaVisit</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="images/logo/buenavisit-logo.png" alt="BuenaVisit Logo" onerror="this.style.display='none'">
+                <span class="logo-text">BuenaVisit</span>
+            </div>
+            
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="places.html"><i class="fas fa-map-marker-alt"></i> Places</a></li>
+                <li><a href="maps.html"><i class="fas fa-map"></i> Maps</a></li>
+                <li><a href="transport.html"><i class="fas fa-bus"></i> Transport</a></li>
+                <li><a href="profile.html" class="active"><i class="fas fa-user"></i> Profile</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Profile Page -->
+    <section class="profile-section">
+        <div class="container">
+            <!-- Profile Header -->
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    <img src="images/avatar-placeholder.jpg" alt="User Avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27200%27 height=%27200%27%3E%3Crect fill=%27%232d7d4e%27 width=%27200%27 height=%27200%27/%3E%3Ctext fill=%27%23ffffff%27 font-size=%2780%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3EGT%3C/text%3E%3C/svg%3E'">
+                    <button class="edit-avatar">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                </div>
+                <div class="profile-info">
+                    <h1>Guest Traveler</h1>
+                    <p>traveler@example.com</p>
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <span class="stat-number">12</span>
+                            <span class="stat-label">Places Visited</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">8</span>
+                            <span class="stat-label">Reviews</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number">3</span>
+                            <span class="stat-label">Bookings</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Content -->
+            <div class="profile-content">
+                <!-- Tabs -->
+                <div class="profile-tabs">
+                    <button class="profile-tab active" onclick="showTab('bookings')">
+                        <i class="fas fa-calendar-check"></i> My Bookings
+                    </button>
+                    <button class="profile-tab" onclick="showTab('reviews')">
+                        <i class="fas fa-star"></i> My Reviews
+                    </button>
+                    <button class="profile-tab" onclick="showTab('favorites')">
+                        <i class="fas fa-heart"></i> Favorites
+                    </button>
+                    <button class="profile-tab" onclick="showTab('settings')">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tab-content">
+                    <!-- Bookings Tab -->
+                    <div id="bookings" class="tab-pane active">
+                        <h2>My Bookings</h2>
+                        <div class="bookings-list">
+                            <div class="booking-card">
+                                <div class="booking-icon">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div class="booking-info">
+                                    <h3>Manlangit Nature's Park</h3>
+                                    <p class="booking-date">
+                                        <i class="fas fa-calendar"></i> November 15, 2025 at 9:00 AM
+                                    </p>
+                                    <p class="booking-guests">
+                                        <i class="fas fa-users"></i> 3 visitors
+                                    </p>
+                                </div>
+                                <div class="booking-status confirmed">
+                                    <i class="fas fa-check-circle"></i> Confirmed
+                                </div>
+                            </div>
+
+                            <div class="booking-card">
+                                <div class="booking-icon">
+                                    <i class="fas fa-bus"></i>
+                                </div>
+                                <div class="booking-info">
+                                    <h3>Transport to Masao Beach</h3>
+                                    <p class="booking-date">
+                                        <i class="fas fa-calendar"></i> November 20, 2025 at 2:00 PM
+                                    </p>
+                                    <p class="booking-guests">
+                                        <i class="fas fa-users"></i> 2 passengers
+                                    </p>
+                                </div>
+                                <div class="booking-status pending">
+                                    <i class="fas fa-clock"></i> Pending
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reviews Tab -->
+                    <div id="reviews" class="tab-pane">
+                        <h2>My Reviews</h2>
+                        <div class="reviews-list">
+                            <div class="review-card">
+                                <div class="review-header">
+                                    <h3>Masao Public Beach</h3>
+                                    <div class="review-rating">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <span>5.0</span>
+                                    </div>
+                                </div>
+                                <p class="review-date">Posted on October 15, 2024</p>
+                                <p class="review-text">Beautiful beach! Perfect for family outings. The sunset view is amazing.</p>
+                                <button class="btn btn-outline btn-sm">
+                                    <i class="fas fa-edit"></i> Edit Review
+                                </button>
+                            </div>
+
+                            <div class="review-card">
+                                <div class="review-header">
+                                    <h3>Andi's SnackBreak Delight</h3>
+                                    <div class="review-rating">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="far fa-star"></i>
+                                        <span>4.0</span>
+                                    </div>
+                                </div>
+                                <p class="review-date">Posted on September 28, 2024</p>
+                                <p class="review-text">Great local snacks and very affordable. The service is quick and friendly.</p>
+                                <button class="btn btn-outline btn-sm">
+                                    <i class="fas fa-edit"></i> Edit Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Favorites Tab -->
+                    <div id="favorites" class="tab-pane">
+                        <h2>Favorite Places</h2>
+                        <div class="favorites-grid">
+                            <div class="favorite-card">
+                                <img src="images/places/manlangit-nature-park/main.jpg" alt="Manlangit Nature's Park" onerror="this.src='images/placeholder.jpg'">
+                                <div class="favorite-info">
+                                    <h3>Manlangit Nature's Park</h3>
+                                    <p>Nature Park</p>
+                                </div>
+                                <button class="favorite-btn active" onclick="toggleFavorite(this)">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </div>
+
+                            <div class="favorite-card">
+                                <img src="images/places/masao-public-beach/main.jpg" alt="Masao Public Beach" onerror="this.src='images/placeholder.jpg'">
+                                <div class="favorite-info">
+                                    <h3>Masao Public Beach</h3>
+                                    <p>Beach</p>
+                                </div>
+                                <button class="favorite-btn active" onclick="toggleFavorite(this)">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </div>
+
+                            <div class="favorite-card">
+                                <img src="images/places/municipal-plaza/main.jpg" alt="Municipal Plaza" onerror="this.src='images/placeholder.jpg'">
+                                <div class="favorite-info">
+                                    <h3>Buenavista Municipal Plaza</h3>
+                                    <p>Cultural Site</p>
+                                </div>
+                                <button class="favorite-btn active" onclick="toggleFavorite(this)">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Settings Tab -->
+                    <div id="settings" class="tab-pane">
+                        <h2>Account Settings</h2>
+                        <form class="settings-form" onsubmit="saveSettings(event)">
+                            <div class="form-section">
+                                <h3>Personal Information</h3>
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" value="Guest Traveler" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" value="traveler@example.com" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" value="+63 xxx xxx xxxx">
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <h3>Preferences</h3>
+                                <div class="form-group">
+                                    <label>Preferred Language</label>
+                                    <select>
+                                        <option>English</option>
+                                        <option>Filipino</option>
+                                        <option>Cebuano</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" checked>
+                                        <span>Receive email notifications</span>
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" checked>
+                                        <span>Receive promotional offers</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Chat Button -->
+    <button class="chat-fab" onclick="openChat()">
+        <i class="fas fa-comment"></i>
+    </button>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>BuenaVisit</h3>
+                    <p>Your guide to exploring Buenavista, Agusan del Sur</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="places.html">Places</a></li>
+                        <li><a href="maps.html">Maps</a></li>
+                        <li><a href="transport.html">Transport</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Tourism Office, Buenavista</p>
+                    <p>Agusan del Sur, Philippines</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 BuenaVisit Tourism Platform. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/profile.js"></script>
+</body>
+</html>
+

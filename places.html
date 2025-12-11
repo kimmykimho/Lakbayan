@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Places - BuenaVisit</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/places.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="images/logo/buenavisit-logo.png" alt="BuenaVisit Logo" onerror="this.style.display='none'">
+                <span class="logo-text">BuenaVisit</span>
+            </div>
+            
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <ul class="nav-links" id="navLinks">
+                <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="places.html" class="active"><i class="fas fa-map-marker-alt"></i> Places</a></li>
+                <li><a href="maps.html"><i class="fas fa-map"></i> Maps</a></li>
+                <li><a href="transport.html"><i class="fas fa-bus"></i> Transport</a></li>
+                <li><a href="profile.html"><i class="fas fa-user"></i> Profile</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Weather Banner -->
+    <div class="weather-banner" id="weatherBanner">
+        <div class="weather-content">
+            <span class="weather-icon">🌤️</span>
+            <span class="weather-text">34°C | AI suggests visiting Manlangit Nature's Park for a cooler escape!</span>
+        </div>
+        <button class="weather-action" onclick="showSuggestions()">View Suggestions</button>
+        <button class="weather-close" onclick="hideWeatherBanner()">Hide Suggestions</button>
+    </div>
+
+    <!-- AI Suggestions Section -->
+    <section class="ai-suggestions" id="aiSuggestions">
+        <div class="container">
+            <div class="section-header">
+                <h2>AI-Powered Suggestions</h2>
+                <div class="update-indicator">
+                    <span class="update-dot"></span>
+                    <span>Updated just now</span>
+                </div>
+            </div>
+
+            <div class="suggestions-carousel">
+                <button class="carousel-nav-btn prev" onclick="scrollSuggestions(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+
+                <div class="suggestions-container" id="suggestionsContainer">
+                    <!-- Suggestion Card 1 -->
+                    <div class="suggestion-card">
+                        <img src="images/places/municipal-plaza/main.jpg" alt="Buenavista Municipal Plaza" onerror="this.src='images/placeholder.jpg'">
+                        <div class="suggestion-badge">
+                            <i class="fas fa-star"></i> 8.9
+                        </div>
+                        <div class="suggestion-info">
+                            <h3>Buenavista Municipal Plaza</h3>
+                            <p>The heart of our community featuring the historic town plaza and St. Joseph...</p>
+                            <div class="suggestion-meta">
+                                <span><i class="fas fa-users"></i> 250 today</span>
+                                <button class="btn btn-primary btn-sm" onclick="openPlaceModal('plaza')">Visit Now</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggestion Card 2 -->
+                    <div class="suggestion-card">
+                        <img src="images/places/manlangit-nature-park/main.jpg" alt="Manlangit Nature's Park" onerror="this.src='images/placeholder.jpg'">
+                        <div class="suggestion-badge">
+                            <i class="fas fa-star"></i> 8.9
+                        </div>
+                        <div class="suggestion-info">
+                            <h3>Manlangit Nature's Park</h3>
+                            <p>Manlangit Nature Park is one of the most beautiful view deck in Buenavista,...</p>
+                            <div class="suggestion-meta">
+                                <span><i class="fas fa-users"></i> 150 today</span>
+                                <button class="btn btn-primary btn-sm" onclick="openPlaceModal('manlangit')">Visit Now</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggestion Card 3 -->
+                    <div class="suggestion-card">
+                        <img src="images/places/masao-public-beach/main.jpg" alt="Masao Public Beach" onerror="this.src='images/placeholder.jpg'">
+                        <div class="suggestion-badge">
+                            <i class="fas fa-star"></i> 8.5
+                        </div>
+                        <div class="suggestion-info">
+                            <h3>Masao Public Beach</h3>
+                            <p>Popular local beach perfect for family gatherings and weekend relaxation.</p>
+                            <div class="suggestion-meta">
+                                <span><i class="fas fa-users"></i> 180 today</span>
+                                <button class="btn btn-primary btn-sm" onclick="openPlaceModal('masao')">Visit Now</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggestion Card 4 -->
+                    <div class="suggestion-card">
+                        <img src="images/places/andis-snackbreak/main.jpg" alt="Andi's SnackBreak Delight" onerror="this.src='images/placeholder.jpg'">
+                        <div class="suggestion-badge">
+                            <i class="fas fa-star"></i> 9
+                        </div>
+                        <div class="suggestion-info">
+                            <h3>Andi's SnackBreak Delight</h3>
+                            <p>Charming local snack spot in Buenavista, Agusan, serving a variety of Filipino...</p>
+                            <div class="suggestion-meta">
+                                <span><i class="fas fa-users"></i> 90 today</span>
+                                <button class="btn btn-primary btn-sm" onclick="openPlaceModal('andis')">Visit Now</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="carousel-nav-btn next" onclick="scrollSuggestions(1)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Map Preview -->
+    <section class="map-preview">
+        <div class="container">
+            <div class="map-container" id="mapContainer">
+                <div class="map-placeholder">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <p>Interactive map showing all places</p>
+                    <button class="btn btn-primary" onclick="location.href='maps.html'">Open Full Map</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Place Modal -->
+    <div class="modal" id="placeModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closePlaceModal()">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="modal-body">
+                <div class="modal-image">
+                    <img id="modalImage" src="" alt="">
+                </div>
+
+                <div class="modal-info">
+                    <div class="modal-header">
+                        <h2 id="modalTitle"></h2>
+                        <div class="modal-rating">
+                            <i class="fas fa-star"></i>
+                            <span id="modalRating"></span>
+                        </div>
+                    </div>
+
+                    <div class="modal-visitors">
+                        <i class="fas fa-users"></i>
+                        <span id="modalVisitors"></span>
+                    </div>
+
+                    <div class="modal-section">
+                        <h3>About this place</h3>
+                        <p id="modalDescription"></p>
+                    </div>
+
+                    <div class="modal-section">
+                        <h3>Highlights</h3>
+                        <div class="highlights" id="modalHighlights"></div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h3>Available Activities</h3>
+                        <div class="activities" id="modalActivities"></div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button class="btn btn-primary btn-block" onclick="bookVisit()">
+                            <i class="fas fa-calendar-check"></i> Book Now
+                        </button>
+                        <button class="btn btn-outline btn-block" onclick="findTransport()">
+                            <i class="fas fa-bus"></i> Find Transport
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Button -->
+    <button class="chat-fab" onclick="openChat()">
+        <i class="fas fa-comment"></i>
+    </button>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>BuenaVisit</h3>
+                    <p>Your guide to exploring Buenavista, Agusan del Sur</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="places.html">Places</a></li>
+                        <li><a href="maps.html">Maps</a></li>
+                        <li><a href="transport.html">Transport</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Tourism Office, Buenavista</p>
+                    <p>Agusan del Sur, Philippines</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 BuenaVisit Tourism Platform. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/places.js"></script>
+</body>
+</html>
+
+

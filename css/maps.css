@@ -1,0 +1,292 @@
+/* Maps Page Styles */
+
+body {
+    overflow: hidden;
+}
+
+.maps-page {
+    height: calc(100vh - 70px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Search Bar */
+.maps-search {
+    background: white;
+    padding: 15px 20px;
+    box-shadow: var(--shadow);
+    z-index: 500;
+}
+
+.search-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: 15px;
+}
+
+#searchInput {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+#searchInput:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* Filter Tabs */
+.filter-tabs {
+    background: white;
+    padding: 10px 20px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    z-index: 500;
+    scrollbar-width: none;
+}
+
+.filter-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-tab {
+    padding: 8px 20px;
+    border: 2px solid var(--border-color);
+    background: white;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.filter-tab:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.filter-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Map Wrapper */
+.map-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.interactive-map {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 50%, #80cbc4 100%);
+    position: relative;
+}
+
+/* Map Legend */
+.map-legend {
+    position: absolute;
+    bottom: 30px;
+    left: 20px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 400;
+    min-width: 200px;
+}
+
+.map-legend h3 {
+    font-size: 1rem;
+    margin-bottom: 15px;
+    color: var(--text-dark);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+}
+
+.legend-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+/* Location Indicator */
+.location-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: var(--text-dark);
+    z-index: 300;
+}
+
+.location-dot {
+    width: 12px;
+    height: 12px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+/* Place Info Card */
+.place-info-card {
+    position: absolute;
+    bottom: -300px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    background: white;
+    border-radius: 16px 16px 0 0;
+    box-shadow: var(--shadow-lg);
+    z-index: 600;
+    transition: bottom 0.3s ease;
+}
+
+.place-info-card.active {
+    bottom: 0;
+}
+
+.place-info-card img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 16px 16px 0 0;
+}
+
+.card-content {
+    padding: 20px;
+}
+
+.card-content h3 {
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+    color: var(--text-dark);
+}
+
+.card-content p {
+    color: var(--text-light);
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.close-card {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: white;
+    border: none;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.close-card:hover {
+    background: var(--danger-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Leaflet Custom Styles */
+.leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    padding: 5px;
+}
+
+.leaflet-popup-content {
+    margin: 15px;
+    font-family: inherit;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .search-container {
+        flex-direction: column;
+    }
+
+    .filter-tabs {
+        padding: 10px 15px;
+    }
+
+    .map-legend {
+        bottom: 20px;
+        left: 10px;
+        right: 10px;
+        min-width: auto;
+        padding: 15px;
+    }
+
+    .location-indicator {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+
+    .place-info-card {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .maps-search {
+        padding: 10px 15px;
+    }
+
+    #searchInput {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+
+    .filter-tab {
+        padding: 6px 15px;
+        font-size: 0.85rem;
+    }
+
+    .map-legend {
+        padding: 12px;
+    }
+
+    .map-legend h3 {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+    }
+
+    .legend-item {
+        font-size: 0.85rem;
+    }
+}
+
+
