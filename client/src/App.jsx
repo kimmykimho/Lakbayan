@@ -19,6 +19,7 @@ import MyBookings from './pages/MyBookings'
 import OAuthCallback from './pages/OAuthCallback'
 import ApplyDriver from './pages/ApplyDriver'
 import ApplyBusiness from './pages/ApplyBusiness'
+import Apply from './pages/Apply'
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard'
@@ -114,6 +115,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />
+        <Route path="/apply" element={<Apply />} />
         <Route path="/apply/driver" element={<ApplyDriver />} />
         <Route path="/apply/business" element={<ApplyBusiness />} />
 

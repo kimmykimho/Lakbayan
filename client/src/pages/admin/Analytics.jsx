@@ -481,30 +481,32 @@ export default function AdminAnalytics() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => !generatingReport && setShowReportModal(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-6">
+              <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl">🤖</span>
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <span className="text-2xl">📊</span>
+                    </div>
                     <div>
-                      <h2 className="text-xl font-bold">AI-Generated Analytics Report</h2>
-                      <p className="text-white/80 text-sm">Powered by Gemini AI</p>
+                      <h2 className="text-xl font-bold">Business Analytics Report</h2>
+                      <p className="text-white/80 text-sm">Powered by Gemini AI • {new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowReportModal(false)}
                     disabled={generatingReport}
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
                   >
                     ✕
                   </button>
@@ -512,72 +514,150 @@ export default function AdminAnalytics() {
               </div>
 
               {/* Modal Content */}
-              <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="p-5 sm:p-6 max-h-[65vh] overflow-y-auto bg-gray-50">
                 {generatingReport ? (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-4"></div>
-                    <p className="text-gray-600 font-medium">AI is analyzing your data...</p>
-                    <p className="text-gray-400 text-sm mt-1">This may take a few seconds</p>
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-20 w-20 border-4 border-primary/30 border-t-primary"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl">🤖</span>
+                      </div>
+                    </div>
+                    <p className="text-gray-700 font-semibold mt-6">Generating your report...</p>
+                    <p className="text-gray-400 text-sm mt-1">AI is analyzing platform data</p>
                   </div>
                 ) : aiReport ? (
-                  <div className="space-y-4">
-                    {/* Data Snapshot */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-xl">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.totalUsers || 0}</p>
-                        <p className="text-xs text-gray-500">Users</p>
+                  <div className="space-y-5">
+                    {/* Data Summary Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                        <p className="text-3xl font-bold text-primary">{aiReport.dataSnapshot?.totalUsers || 0}</p>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Total Users</p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.totalPlaces || 0}</p>
-                        <p className="text-xs text-gray-500">Places</p>
+                      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                        <p className="text-3xl font-bold text-blue-600">{aiReport.dataSnapshot?.totalPlaces || 0}</p>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Listed Places</p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.totalBookings || 0}</p>
-                        <p className="text-xs text-gray-500">Bookings</p>
+                      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                        <p className="text-3xl font-bold text-green-600">{aiReport.dataSnapshot?.totalBookings || 0}</p>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Total Bookings</p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.avgRating || 0}</p>
-                        <p className="text-xs text-gray-500">Avg Rating</p>
-                      </div>
-                    </div>
-
-                    {/* Report Content */}
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                        {aiReport.report}
+                      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                        <p className="text-3xl font-bold text-amber-600">{aiReport.dataSnapshot?.avgRating || '0.0'}</p>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Avg Rating</p>
                       </div>
                     </div>
 
-                    {/* Timestamp */}
-                    <div className="text-center text-xs text-gray-400 pt-4 border-t">
-                      Generated: {new Date(aiReport.generatedAt).toLocaleString()}
+                    {/* Report Content - Styled Sections */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="p-5 sm:p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-xl">📋</span>
+                          <h3 className="text-lg font-bold text-gray-800">Full Report</h3>
+                        </div>
+                        <div className="prose prose-sm max-w-none text-gray-700">
+                          {aiReport.report.split('\n\n').map((section, idx) => {
+                            // Check if this is a header section
+                            const lines = section.trim().split('\n');
+                            const firstLine = lines[0].trim().toUpperCase();
+                            const isHeader = firstLine === firstLine.toUpperCase() &&
+                              firstLine.length < 50 &&
+                              !firstLine.match(/^\d+\./);
+
+                            if (isHeader && lines.length > 1) {
+                              return (
+                                <div key={idx} className="mb-5">
+                                  <h4 className="text-sm font-bold text-primary uppercase tracking-wide border-b-2 border-primary/20 pb-2 mb-3">
+                                    {lines[0]}
+                                  </h4>
+                                  <div className="text-gray-600 leading-relaxed whitespace-pre-line">
+                                    {lines.slice(1).join('\n')}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return (
+                              <p key={idx} className="mb-3 text-gray-600 leading-relaxed whitespace-pre-line">
+                                {section}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Generation Info */}
+                    <div className="flex items-center justify-between text-xs text-gray-400 px-1">
+                      <span>Report ID: {Date.now().toString(36).toUpperCase()}</span>
+                      <span>Generated: {new Date(aiReport.generatedAt).toLocaleString()}</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-16 text-gray-500">
-                    <p className="text-4xl mb-3">📊</p>
-                    <p>No report generated yet</p>
+                  <div className="text-center py-20 text-gray-500">
+                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-4xl">📊</span>
+                    </div>
+                    <p className="font-medium">No report generated yet</p>
+                    <p className="text-sm text-gray-400 mt-1">Click "Generate Report" to create one</p>
                   </div>
                 )}
               </div>
 
               {/* Modal Footer */}
               {!generatingReport && aiReport && (
-                <div className="border-t p-4 flex justify-end gap-3 bg-gray-50">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(aiReport.report)
-                      toast.success('Report copied to clipboard!')
-                    }}
-                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    📋 Copy Report
-                  </button>
+                <div className="border-t p-4 flex flex-wrap justify-between gap-3 bg-white">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        // Create downloadable text file
+                        const reportText = `LAKBAYAN SA KITCHARAO - BUSINESS ANALYTICS REPORT
+Generated: ${new Date(aiReport.generatedAt).toLocaleString()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DATA SUMMARY
+• Total Users: ${aiReport.dataSnapshot?.totalUsers || 0}
+• Listed Places: ${aiReport.dataSnapshot?.totalPlaces || 0}
+• Total Bookings: ${aiReport.dataSnapshot?.totalBookings || 0}
+• Average Rating: ${aiReport.dataSnapshot?.avgRating || 0}/5
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${aiReport.report}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Report generated by Lakbayan sa Kitcharao Analytics
+Powered by Gemini AI`;
+
+                        const blob = new Blob([reportText], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Lakbayan_Analytics_Report_${new Date().toISOString().split('T')[0]}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        toast.success('Report downloaded!')
+                      }}
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                    >
+                      <span>📥</span> Download Report
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(aiReport.report)
+                        toast.success('Report copied to clipboard!')
+                      }}
+                      className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors flex items-center gap-2"
+                    >
+                      <span>📋</span> Copy
+                    </button>
+                  </div>
                   <button
                     onClick={handleGenerateReport}
-                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark flex items-center gap-2"
+                    className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2"
                   >
-                    🔄 Regenerate
+                    <span>🔄</span> Regenerate Report
                   </button>
                 </div>
               )}
@@ -588,3 +668,4 @@ export default function AdminAnalytics() {
     </div>
   )
 }
+

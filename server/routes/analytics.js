@@ -465,39 +465,61 @@ router.post('/generate-report', protect, authorize('admin'), async (req, res) =>
     Report Date: ${new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}
 
     USER STATISTICS:
-    - Total Users: ${totalUsers || 0}
+    - Total Registered Users: ${totalUsers || 0}
     - Tourists: ${touristCount || 0}
     - Business Owners: ${ownerCount || 0}
     - Drivers: ${driverCount || 0}
 
     PLACES STATISTICS:
-    - Total Places: ${places?.length || 0}
-    - Categories: ${Object.entries(categoryCount).map(([k, v]) => `${k}: ${v}`).join(', ')}
-    - Total Visitors: ${totalVisitors}
-    - Average Rating: ${avgRating}/5
+    - Total Listed Places: ${places?.length || 0}
+    - Categories Breakdown: ${Object.entries(categoryCount).map(([k, v]) => `${k}: ${v}`).join(', ') || 'None'}
+    - Total Visitor Count: ${totalVisitors}
+    - Average Place Rating: ${avgRating}/5.0
 
     BOOKING STATISTICS:
     - Total Bookings (All Time): ${totalBookings || 0}
     - Bookings (Last 30 Days): ${recentBookingsCount}
+    - Booking Growth: ${totalBookings > 0 ? ((recentBookingsCount / totalBookings) * 100).toFixed(1) : 0}% in last 30 days
 
     TOP PERFORMING PLACES:
-    ${topPlaces.join('\n    ')}
+    ${topPlaces.length > 0 ? topPlaces.join('\n    ') : 'No visitor data available yet'}
     `;
 
-    const prompt = `You are an expert business analyst for a tourism platform called "Lakbayan sa Kitcharao" in Kitcharao, Agusan del Norte, Philippines.
+    const prompt = `You are a professional business analyst generating an official analytics report for "Lakbayan sa Kitcharao" - a tourism platform in Kitcharao, Agusan del Norte, Philippines.
 
-Based on the following analytics data, generate a comprehensive but concise business report with actionable insights.
+IMPORTANT FORMATTING RULES:
+- DO NOT use markdown symbols like **, *, or #
+- DO NOT use bullet points with - or *
+- Use plain text with clear section headers in CAPS
+- Use numbered lists (1. 2. 3.) for items
+- Keep paragraphs clear and professional
+- Write in a formal business report style
+
+Based on this analytics data, generate a comprehensive business report:
 
 ${analyticsData}
 
-Please provide:
-1. EXECUTIVE SUMMARY (2-3 sentences overview)
-2. KEY PERFORMANCE HIGHLIGHTS (3-4 bullet points)
-3. GROWTH OPPORTUNITIES (2-3 specific recommendations)
-4. AREAS FOR IMPROVEMENT (2-3 actionable suggestions)
-5. STRATEGIC RECOMMENDATIONS (2-3 next steps)
+Generate the report with these EXACT sections:
 
-Keep the report professional, data-driven, and actionable. Format with clear headers. Use specific numbers from the data provided.`;
+EXECUTIVE SUMMARY
+Write 2-3 sentences providing a high-level overview of the platform's current state and performance.
+
+KEY METRICS ANALYSIS
+Analyze the numbers. Write 3-4 numbered points about what the data reveals about platform performance.
+
+PERFORMANCE HIGHLIGHTS
+List 3-4 numbered positive aspects or achievements based on the data.
+
+AREAS REQUIRING ATTENTION
+List 2-3 numbered areas that need improvement or focus based on the data.
+
+STRATEGIC RECOMMENDATIONS
+Provide 3-4 numbered actionable recommendations for growth and improvement.
+
+30-DAY ACTION PLAN
+Provide 3 specific numbered actions to take in the next 30 days.
+
+Remember: Professional tone, no markdown, clean formatting, use actual numbers from the data.`;
 
     // Generate report using Gemini
     const modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];

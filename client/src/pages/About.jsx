@@ -31,27 +31,8 @@ export default function About() {
             setItems(response.data.data || [])
         } catch (error) {
             console.error('Failed to fetch about items:', error)
-            // Use placeholder data if API fails
-            setItems([
-                {
-                    id: '1',
-                    title: 'Kitcharao Heritage',
-                    slug: 'kitcharao-heritage',
-                    description: 'Rich history and cultural heritage of Kitcharao. The town preserves its indigenous Manobo traditions while embracing modern development.',
-                    category: 'heritage',
-                    featured: true,
-                    images: ['https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?w=800']
-                },
-                {
-                    id: '2',
-                    title: 'Manobo Culture',
-                    slug: 'manobo-culture',
-                    description: 'The Manobo people are the original inhabitants with vibrant traditions, colorful festivals, and traditional dances.',
-                    category: 'culture',
-                    featured: true,
-                    images: ['https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800']
-                }
-            ])
+            // Show empty state if API fails - no placeholder data
+            setItems([])
         } finally {
             setLoading(false)
         }
@@ -188,8 +169,8 @@ export default function About() {
                                         {/* Event/Achievement Date Display */}
                                         {(item.category === 'events' || item.category === 'achievements') && item.event_date?.start && (
                                             <div className={`flex items-center gap-2 mb-2 text-sm px-3 py-1.5 rounded-lg ${item.category === 'achievements'
-                                                    ? 'text-amber-600 bg-amber-50'
-                                                    : 'text-blue-600 bg-blue-50'
+                                                ? 'text-amber-600 bg-amber-50'
+                                                : 'text-blue-600 bg-blue-50'
                                                 }`}>
                                                 <span>{item.category === 'achievements' ? '🏆' : '📅'}</span>
                                                 <span className="font-medium">

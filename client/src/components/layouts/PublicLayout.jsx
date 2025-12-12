@@ -180,6 +180,21 @@ export default function PublicLayout() {
 
                             <div className="border-t my-2"></div>
 
+                            {/* Apply in Lakbayan - Only for tourists */}
+                            {user?.role === 'tourist' && (
+                              <Link
+                                to="/apply"
+                                onClick={() => setProfileDropdownOpen(false)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 hover:text-amber-700 transition-all group"
+                              >
+                                <span className="text-lg group-hover:scale-110 transition-transform">🚀</span>
+                                <div>
+                                  <span className="font-medium">Apply in Lakbayan</span>
+                                  <p className="text-xs text-gray-400 group-hover:text-amber-600">Become a partner</p>
+                                </div>
+                              </Link>
+                            )}
+
                             <button
                               onClick={confirmLogout}
                               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-all"
@@ -192,57 +207,6 @@ export default function PublicLayout() {
                       )}
                     </AnimatePresence>
                   </div>
-
-                  {/* Hamburger Menu for Apply Options - Only show for tourists */}
-                  {user?.role === 'tourist' && (
-                    <div className="relative" ref={applyDropdownRef}>
-                      <button
-                        onClick={() => setApplyDropdownOpen(!applyDropdownOpen)}
-                        className="flex items-center justify-center w-9 h-9 lg:w-10 lg:h-10 bg-gradient-to-r from-orange-400 to-amber-400 hover:from-orange-500 hover:to-amber-500 text-white rounded-lg font-bold transition-all text-lg shadow-sm hover:shadow-md"
-                        title="Become a partner"
-                      >
-                        ≡
-                      </button>
-
-                      <AnimatePresence>
-                        {applyDropdownOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
-                          >
-                            <div className="p-2">
-                              <p className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Partner with us</p>
-                              <Link
-                                to="/apply/driver"
-                                onClick={() => setApplyDropdownOpen(false)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-all group"
-                              >
-                                <span className="text-xl group-hover:scale-110 transition-transform">🚗</span>
-                                <div>
-                                  <p className="font-medium">Become a Driver</p>
-                                  <p className="text-xs text-gray-500">Offer transport services</p>
-                                </div>
-                              </Link>
-                              <Link
-                                to="/apply/business"
-                                onClick={() => setApplyDropdownOpen(false)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-all group"
-                              >
-                                <span className="text-xl group-hover:scale-110 transition-transform">🏪</span>
-                                <div>
-                                  <p className="font-medium">Become a Business Owner</p>
-                                  <p className="text-xs text-gray-500">List your establishment</p>
-                                </div>
-                              </Link>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
                 </>
               ) : (
                 <>
@@ -290,7 +254,7 @@ export default function PublicLayout() {
                 transition={{ duration: 0.2 }}
                 className="md:hidden overflow-hidden border-t"
               >
-                <div className="py-3 space-y-1">
+                <div className="py-3 space-y-1 max-h-[70vh] overflow-y-auto">
                   {navigation.map((item) => (
                     <Link
                       key={item.path}
@@ -351,35 +315,16 @@ export default function PublicLayout() {
                           <span>My Bookings</span>
                         </Link>
 
-                        {/* Mobile Apply Options - Only show for tourists */}
+                        {/* Apply in Lakbayan - Only show for tourists */}
                         {user?.role === 'tourist' && (
-                          <div className="px-4 py-2">
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Partner with us</p>
-                            <div className="space-y-1">
-                              <Link
-                                to="/apply/driver"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all"
-                              >
-                                <span className="text-lg">🚗</span>
-                                <div>
-                                  <p className="font-medium text-sm">Become a Driver</p>
-                                  <p className="text-xs text-orange-600/70">Offer transport services</p>
-                                </div>
-                              </Link>
-                              <Link
-                                to="/apply/business"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
-                              >
-                                <span className="text-lg">🏪</span>
-                                <div>
-                                  <p className="font-medium text-sm">Become a Business Owner</p>
-                                  <p className="text-xs text-amber-600/70">List your establishment</p>
-                                </div>
-                              </Link>
-                            </div>
-                          </div>
+                          <Link
+                            to="/apply"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 font-medium transition-all"
+                          >
+                            <span className="text-xl">🚀</span>
+                            <span>Apply in Lakbayan</span>
+                          </Link>
                         )}
 
                         <button
@@ -387,9 +332,10 @@ export default function PublicLayout() {
                             setMobileMenuOpen(false)
                             confirmLogout()
                           }}
-                          className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-all"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-all"
                         >
-                          Logout
+                          <span className="text-xl">🚪</span>
+                          <span>Logout</span>
                         </button>
                       </>
                     ) : (
