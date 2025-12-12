@@ -49,38 +49,57 @@ RESPONSE STYLE:
 
 Remember: You are ONLY for Kitcharao, Agusan del Norte tourism. Keep responses clean without any markdown symbols.`;
 
-// Function to fetch platform data for AI context
+// Function to fetch platform data for AI context (optimized for speed)
 async function fetchPlatformData() {
   try {
-    // Fetch places with details
-    const { data: places } = await supabaseAdmin
-      .from('places')
-      .select('name, description, category, location, rating, visitors, featured, status')
-      .eq('status', 'active')
-      .order('visitors->total', { ascending: false })
-      .limit(20);
+    // Use Promise.allSettled to avoid blocking if one query fails
+    const [placesResult, aboutResult, statsResult] = await Promise.allSettled([
+      // Fetch places - limit fields, avoid JSONB ordering
+      supabaseAdmin
+        .from('places')
+        .select('name, description, category, location, rating, visitors, featured')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(15),
 
-    // Fetch about items (events, achievements, heritage, etc.)
-    const { data: aboutItems } = await supabaseAdmin
-      .from('about_items')
-      .select('title, description, category, event_date')
-      .order('created_at', { ascending: false })
-      .limit(15);
+      // Fetch about items
+      supabaseAdmin
+        .from('about_items')
+        .select('title, description, category, event_date')
+        .order('created_at', { ascending: false })
+        .limit(10),
 
-    // Fetch some stats
-    const { count: totalPlaces } = await supabaseAdmin
-      .from('places')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
+      // Get counts (fast with head: true)
+      Promise.all([
+        supabaseAdmin.from('places').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+        supabaseAdmin.from('users').select('id', { count: 'exact', head: true })
+      ])
+    ]);
 
-    const { count: totalUsers } = await supabaseAdmin
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+    // Extract data safely
+    const places = placesResult.status === 'fulfilled' ? placesResult.value.data : [];
+    const aboutItems = aboutResult.status === 'fulfilled' ? aboutResult.value.data : [];
 
-    return { places, aboutItems, stats: { totalPlaces, totalUsers } };
+    let totalPlaces = 0, totalUsers = 0;
+    if (statsResult.status === 'fulfilled') {
+      totalPlaces = statsResult.value[0]?.count || 0;
+      totalUsers = statsResult.value[1]?.count || 0;
+    }
+
+    // Sort places by visitors in JavaScript (faster than DB JSONB ordering)
+    const sortedPlaces = (places || []).sort((a, b) =>
+      (b.visitors?.total || 0) - (a.visitors?.total || 0)
+    );
+
+    return {
+      places: sortedPlaces,
+      aboutItems: aboutItems || [],
+      stats: { totalPlaces, totalUsers }
+    };
   } catch (error) {
     console.error('Error fetching platform data for chatbot:', error);
-    return { places: [], aboutItems: [], stats: {} };
+    // Return empty data on error - chatbot will still work with base prompt
+    return { places: [], aboutItems: [], stats: { totalPlaces: 0, totalUsers: 0 } };
   }
 }
 

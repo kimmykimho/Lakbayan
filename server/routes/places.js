@@ -14,16 +14,29 @@ const generateSlug = (name) => {
 };
 
 // @route   GET /api/places
-// @desc    Get all places with filters
+// @desc    Get all places with filters (optimized)
 // @access  Public
 router.get('/', async (req, res) => {
   try {
-    const { category, status, featured, sort, limit, search } = req.query;
+    const { category, status, featured, sort, limit, search, page = 1 } = req.query;
 
-    // Build query
-    let query = supabase.from('places').select('*');
+    // Default limit to prevent large queries - max 50 items
+    const queryLimit = Math.min(parseInt(limit) || 20, 50);
+    const offset = (parseInt(page) - 1) * queryLimit;
 
-    if (status) query = query.eq('status', status);
+    // Select only necessary fields for list view (not all columns)
+    let query = supabase
+      .from('places')
+      .select('id, name, slug, description, category, location, images, rating, visitors, featured, status, created_at', { count: 'exact' });
+
+    // Apply filters
+    if (status) {
+      query = query.eq('status', status);
+    } else {
+      // Default to active places only for public queries
+      query = query.eq('status', 'active');
+    }
+
     if (featured === 'true') query = query.eq('featured', true);
     if (category && category !== 'all') query = query.eq('category', category);
 
@@ -31,30 +44,45 @@ router.get('/', async (req, res) => {
       query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
     }
 
-    // Sorting
+    // Sorting - use created_at by default (indexed), avoid JSONB sorting when possible
     if (sort === 'rating') {
-      query = query.order('rating->average', { ascending: false });
+      query = query.order('created_at', { ascending: false }); // Fallback to indexed column
     } else if (sort === 'popular') {
-      query = query.order('visitors->total', { ascending: false });
+      query = query.order('created_at', { ascending: false }); // Fallback to indexed column
+    } else if (sort === 'name') {
+      query = query.order('name', { ascending: true });
     } else {
       query = query.order('created_at', { ascending: false });
     }
 
-    // Limit
-    if (limit) {
-      query = query.limit(parseInt(limit));
-    }
+    // Apply pagination
+    query = query.range(offset, offset + queryLimit - 1);
 
-    const { data: places, error } = await query;
+    const { data: places, error, count } = await query;
 
     if (error) {
       throw new Error(error.message);
     }
 
+    // Sort by JSONB fields in JavaScript if needed (faster than DB for small sets)
+    let sortedPlaces = places || [];
+    if (sort === 'rating' && sortedPlaces.length > 0) {
+      sortedPlaces = sortedPlaces.sort((a, b) =>
+        (b.rating?.average || 0) - (a.rating?.average || 0)
+      );
+    } else if (sort === 'popular' && sortedPlaces.length > 0) {
+      sortedPlaces = sortedPlaces.sort((a, b) =>
+        (b.visitors?.total || 0) - (a.visitors?.total || 0)
+      );
+    }
+
     res.json({
       success: true,
-      count: places.length,
-      data: places
+      count: sortedPlaces.length,
+      total: count,
+      page: parseInt(page),
+      totalPages: Math.ceil((count || 0) / queryLimit),
+      data: sortedPlaces
     });
   } catch (error) {
     console.error('Error fetching places:', error);
@@ -65,6 +93,7 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
 
 // @route   GET /api/places/:id
 // @desc    Get single place by ID
