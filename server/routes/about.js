@@ -23,10 +23,10 @@ router.get('/', async (req, res) => {
         // Default limit to prevent large queries
         const queryLimit = Math.min(parseInt(limit) || 30, 50);
 
-        // Select only necessary fields for list view
+        // Minimal fields for fastest query - no count to reduce overhead
         let query = supabase
             .from('about_items')
-            .select('id, title, slug, description, images, category, featured, status, event_date, created_at')
+            .select('id, title, slug, description, images, category, featured, status, created_at')
             .eq('status', 'active')
             .order('created_at', { ascending: false })
             .limit(queryLimit);

@@ -3,6 +3,10 @@ node_modules/
 .pnp/
 .pnp.js
 
+backups/
+
+
+
 # Environment variables
 .env
 .env.local
