@@ -65,16 +65,16 @@ export default function Favorites() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white py-12 md:py-20">
+      <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white py-6 md:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <div className="text-6xl md:text-8xl mb-4">❤️</div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-4">My Favorites</h1>
-            <p className="text-xl md:text-2xl opacity-90">
+            <div className="text-4xl md:text-5xl mb-2">❤️</div>
+            <h1 className="text-2xl md:text-3xl font-bold mb-2">My Favorites</h1>
+            <p className="text-base md:text-lg opacity-90">
               {favorites.length} place{favorites.length !== 1 ? 's' : ''} you love
             </p>
           </motion.div>

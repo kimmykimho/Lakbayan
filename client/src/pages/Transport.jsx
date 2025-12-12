@@ -338,26 +338,26 @@ export default function Transport() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-br from-blue-500 via-primary to-primary-dark text-white py-12 sm:py-16">
+      <div className="bg-gradient-to-br from-blue-500 via-primary to-primary-dark text-white py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-3 mb-2">
               <button
                 onClick={() => navigate(-1)}
                 className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-all"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
                 🚗 Transport Service
               </h1>
             </div>
-            <p className="text-lg sm:text-xl opacity-90 mb-3">
+            <p className="text-base sm:text-lg opacity-90 mb-2">
               {destination ? `Get directions to ${destination.name}` : 'Book your ride in Kitcharao'}
             </p>
             <div className="flex flex-wrap items-center gap-3 text-sm">

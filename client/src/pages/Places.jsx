@@ -149,20 +149,20 @@ export default function Places() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary via-primary-dark to-primary text-white py-16 sm:py-24">
+      <div className="bg-gradient-to-br from-primary via-primary-dark to-primary text-white py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl mb-6">
-              <span className="text-5xl">📍</span>
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl mb-3">
+              <span className="text-3xl">📍</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
               Explore Kitcharao
             </h1>
-            <p className="text-lg sm:text-xl opacity-90 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg opacity-90 max-w-2xl mx-auto">
               Discover amazing destinations, hidden gems, and unforgettable experiences
             </p>
           </motion.div>

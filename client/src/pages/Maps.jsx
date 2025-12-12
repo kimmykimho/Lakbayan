@@ -175,31 +175,30 @@ export default function Maps() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-blue-500 via-primary to-primary-dark text-white py-12 sm:py-16 md:py-20">
+      <div className="bg-gradient-to-br from-blue-500 via-primary to-primary-dark text-white py-6 sm:py-8 md:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl mb-4 sm:mb-6">
-              <span className="text-4xl sm:text-5xl">🗺️</span>
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-xl mb-2 sm:mb-3">
+              <span className="text-3xl sm:text-4xl">🗺️</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
               Interactive Maps
             </h1>
-            <p className="text-base sm:text-lg md:text-xl opacity-90 max-w-2xl mx-auto px-4">
+            <p className="text-sm sm:text-base md:text-lg opacity-90 max-w-2xl mx-auto px-4">
               Navigate Kitcharao with real-time locations and AI-powered routing
             </p>
           </motion.div>
         </div>
       </div>
 
-      {/* Map Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
-        {/* Categories - Wrap to show all */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
+      {/* Categories - Full width horizontal scroll (matching Places page structure) */}
+      <div className="bg-white shadow-sm border-b mb-6">
+        <div className="overflow-x-auto scrollbar-hide">
+          <div className="flex gap-2 sm:gap-3 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 min-w-max lg:justify-center lg:min-w-0 lg:max-w-7xl lg:mx-auto">
             {categories.map((category) => (
               <button
                 key={category.id}
@@ -207,26 +206,25 @@ export default function Maps() {
                   setSelectedCategory(category.id)
                   clearRoute()
                 }}
-                className={`px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base ${selectedCategory === category.id
-                  ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg'
-                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-primary'
+                className={`flex-shrink-0 px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base ${selectedCategory === category.id
+                  ? 'bg-primary text-white shadow-lg'
+                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-beige-400'
                   }`}
               >
                 <span className="text-base sm:text-xl">{category.icon}</span>
                 <span className="whitespace-nowrap">{category.name}</span>
-                {category.count !== undefined && (
-                  <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${selectedCategory === category.id
-                    ? 'bg-white/20'
-                    : 'bg-gray-200 text-gray-600'
-                    }`}>
-                    {category.count}
-                  </span>
-                )}
+                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-semibold ${selectedCategory === category.id ? 'bg-white/20' : 'bg-gray-200'
+                  }`}>
+                  {category.count}
+                </span>
               </button>
             ))}
           </div>
         </div>
+      </div>
 
+      {/* Map Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Map Container */}
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Map */}
