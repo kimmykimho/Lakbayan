@@ -14,26 +14,28 @@ const generateSlug = (title) => {
 };
 
 // @route   GET /api/about
-// @desc    Get all about items (public)
+// @desc    Get all about items (public) - optimized
 // @access  Public
 router.get('/', async (req, res) => {
     try {
         const { category, featured, limit } = req.query;
 
+        // Default limit to prevent large queries
+        const queryLimit = Math.min(parseInt(limit) || 30, 50);
+
+        // Select only necessary fields for list view
         let query = supabase
             .from('about_items')
-            .select('*')
+            .select('id, title, slug, description, images, category, featured, status, event_date, created_at')
             .eq('status', 'active')
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(queryLimit);
 
         if (category && category !== 'all') {
             query = query.eq('category', category);
         }
         if (featured === 'true') {
             query = query.eq('featured', true);
-        }
-        if (limit) {
-            query = query.limit(parseInt(limit));
         }
 
         const { data: items, error } = await query;
@@ -42,8 +44,8 @@ router.get('/', async (req, res) => {
 
         res.json({
             success: true,
-            count: items.length,
-            data: items
+            count: items?.length || 0,
+            data: items || []
         });
     } catch (error) {
         console.error('Error fetching about items:', error);
@@ -54,6 +56,7 @@ router.get('/', async (req, res) => {
         });
     }
 });
+
 
 // @route   GET /api/about/:id
 // @desc    Get single about item by ID or slug

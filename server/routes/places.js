@@ -14,57 +14,48 @@ const generateSlug = (name) => {
 };
 
 // @route   GET /api/places
-// @desc    Get all places with filters (optimized)
+// @desc    Get all places with filters (ultra-optimized for free tier)
 // @access  Public
 router.get('/', async (req, res) => {
   try {
     const { category, status, featured, sort, limit, search, page = 1 } = req.query;
 
-    // Default limit to prevent large queries - max 50 items
-    const queryLimit = Math.min(parseInt(limit) || 20, 50);
+    // Very small default limit to prevent timeouts on free tier
+    const queryLimit = Math.min(parseInt(limit) || 12, 30);
     const offset = (parseInt(page) - 1) * queryLimit;
 
-    // Select only necessary fields for list view (not all columns)
+    // Minimal fields for fastest query - no count to reduce overhead
     let query = supabase
       .from('places')
-      .select('id, name, slug, description, category, location, images, rating, visitors, featured, status, created_at', { count: 'exact' });
+      .select('id, name, slug, category, location, images, rating, visitors, featured, status');
 
-    // Apply filters
+    // Apply status filter
     if (status) {
       query = query.eq('status', status);
     } else {
-      // Default to active places only for public queries
       query = query.eq('status', 'active');
     }
 
     if (featured === 'true') query = query.eq('featured', true);
     if (category && category !== 'all') query = query.eq('category', category);
 
+    // Search - only on name for speed
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      query = query.ilike('name', `%${search}%`);
     }
 
-    // Sorting - use created_at by default (indexed), avoid JSONB sorting when possible
-    if (sort === 'rating') {
-      query = query.order('created_at', { ascending: false }); // Fallback to indexed column
-    } else if (sort === 'popular') {
-      query = query.order('created_at', { ascending: false }); // Fallback to indexed column
-    } else if (sort === 'name') {
-      query = query.order('name', { ascending: true });
-    } else {
-      query = query.order('created_at', { ascending: false });
-    }
+    // Always order by created_at (indexed) and apply pagination
+    query = query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + queryLimit - 1);
 
-    // Apply pagination
-    query = query.range(offset, offset + queryLimit - 1);
-
-    const { data: places, error, count } = await query;
+    const { data: places, error } = await query;
 
     if (error) {
       throw new Error(error.message);
     }
 
-    // Sort by JSONB fields in JavaScript if needed (faster than DB for small sets)
+    // Sort by JSONB fields in JavaScript if requested
     let sortedPlaces = places || [];
     if (sort === 'rating' && sortedPlaces.length > 0) {
       sortedPlaces = sortedPlaces.sort((a, b) =>
@@ -79,9 +70,6 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       count: sortedPlaces.length,
-      total: count,
-      page: parseInt(page),
-      totalPages: Math.ceil((count || 0) / queryLimit),
       data: sortedPlaces
     });
   } catch (error) {
@@ -93,6 +81,7 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
 
 
 // @route   GET /api/places/:id
