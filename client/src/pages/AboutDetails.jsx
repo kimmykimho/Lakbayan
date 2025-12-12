@@ -81,10 +81,12 @@ export default function AboutDetails() {
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
+                        className="w-full"
                     >
                         {images.length > 0 ? (
-                            <div className="space-y-4">
-                                <div className="relative rounded-2xl overflow-hidden shadow-lg aspect-video bg-gray-100">
+                            <div className="space-y-3 sm:space-y-4">
+                                {/* Main Image */}
+                                <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-lg aspect-[4/3] sm:aspect-video bg-gray-100">
                                     <img
                                         src={typeof images[selectedImage] === 'object' ? images[selectedImage].url : images[selectedImage]}
                                         alt={item.title}
@@ -93,30 +95,49 @@ export default function AboutDetails() {
                                             e.target.src = 'https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?w=800'
                                         }}
                                     />
+                                    {/* Image counter */}
+                                    {images.length > 1 && (
+                                        <div className="absolute bottom-3 right-3 px-3 py-1.5 bg-black/60 text-white rounded-full text-xs sm:text-sm font-medium backdrop-blur-sm">
+                                            {selectedImage + 1} / {images.length}
+                                        </div>
+                                    )}
                                 </div>
 
+                                {/* Horizontal Scrollable Thumbnails */}
                                 {images.length > 1 && (
-                                    <div className="flex gap-2 overflow-x-auto pb-2">
-                                        {images.map((img, index) => (
-                                            <button
-                                                key={index}
-                                                onClick={() => setSelectedImage(index)}
-                                                className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index ? 'border-primary' : 'border-transparent'
-                                                    }`}
-                                            >
-                                                <img
-                                                    src={typeof img === 'object' ? img.url : img}
-                                                    alt={`Thumbnail ${index + 1}`}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </button>
-                                        ))}
+                                    <div className="relative">
+                                        <div
+                                            className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
+                                            style={{
+                                                scrollbarWidth: 'thin',
+                                                msOverflowStyle: 'none'
+                                            }}
+                                        >
+                                            {images.map((img, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={() => setSelectedImage(index)}
+                                                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
+                                                            ? 'border-primary ring-2 ring-primary/30'
+                                                            : 'border-gray-200 hover:border-gray-300'
+                                                        }`}
+                                                >
+                                                    <img
+                                                        src={typeof img === 'object' ? img.url : img}
+                                                        alt={`Thumbnail ${index + 1}`}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {/* Scroll indicator for mobile */}
+                                        <div className="sm:hidden absolute right-0 top-1/2 -translate-y-1/2 w-8 h-full bg-gradient-to-l from-gray-50 to-transparent pointer-events-none"></div>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            <div className="rounded-2xl h-80 bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center">
-                                <span className="text-8xl">🏛️</span>
+                            <div className="rounded-xl sm:rounded-2xl h-56 sm:h-80 bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center">
+                                <span className="text-6xl sm:text-8xl">🏛️</span>
                             </div>
                         )}
                     </motion.div>

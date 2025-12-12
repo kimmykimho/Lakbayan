@@ -26,7 +26,8 @@ export default function AdminAbout() {
         video_urls: [],
         external_links: [],
         featured: false,
-        status: 'active'
+        status: 'active',
+        event_date: { start: '', end: '' }
     }
 
     const [formData, setFormData] = useState(initialFormData)
@@ -35,7 +36,9 @@ export default function AdminAbout() {
         { value: 'heritage', label: '🏺 Heritage', description: 'Historical artifacts and traditions' },
         { value: 'culture', label: '🎭 Culture', description: 'Festivals, customs, and practices' },
         { value: 'landmark', label: '🗿 Landmarks', description: 'Notable places and monuments' },
-        { value: 'history', label: '📜 History', description: 'Historical events and stories' }
+        { value: 'history', label: '📜 History', description: 'Historical events and stories' },
+        { value: 'events', label: '📅 Events', description: 'Upcoming events and activities' },
+        { value: 'achievements', label: '🏆 Achievements', description: 'Awards, recognitions, and milestones' }
     ]
 
     useEffect(() => {
@@ -73,7 +76,8 @@ export default function AdminAbout() {
             video_urls: item.video_urls || [],
             external_links: item.external_links || [],
             featured: item.featured || false,
-            status: item.status || 'active'
+            status: item.status || 'active',
+            event_date: item.event_date || { start: '', end: '' }
         })
         setImageUrl('')
         setVideoUrl('')
@@ -454,6 +458,52 @@ export default function AdminAbout() {
                                             </select>
                                         </div>
                                     </div>
+
+                                    {/* Event/Achievement Dates - For Events and Achievements categories */}
+                                    {(formData.category === 'events' || formData.category === 'achievements') && (
+                                        <div className={`rounded-xl p-4 border-2 ${formData.category === 'achievements' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+                                            <label className={`block text-sm font-semibold mb-3 ${formData.category === 'achievements' ? 'text-amber-700' : 'text-blue-700'}`}>
+                                                {formData.category === 'achievements' ? '🏆 Achievement Date' : '📅 Event Dates'}
+                                            </label>
+                                            <div className="grid sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                                                        {formData.category === 'achievements' ? 'Date Achieved' : 'Start Date'} <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        value={formData.event_date?.start || ''}
+                                                        onChange={(e) => setFormData({
+                                                            ...formData,
+                                                            event_date: { ...formData.event_date, start: e.target.value }
+                                                        })}
+                                                        className={`w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none transition-all ${formData.category === 'achievements' ? 'focus:border-amber-500' : 'focus:border-blue-500'}`}
+                                                    />
+                                                </div>
+                                                {formData.category === 'events' && (
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                                            End Date
+                                                        </label>
+                                                        <input
+                                                            type="datetime-local"
+                                                            value={formData.event_date?.end || ''}
+                                                            onChange={(e) => setFormData({
+                                                                ...formData,
+                                                                event_date: { ...formData.event_date, end: e.target.value }
+                                                            })}
+                                                            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-all"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className={`text-xs mt-2 ${formData.category === 'achievements' ? 'text-amber-600' : 'text-blue-600'}`}>
+                                                {formData.category === 'achievements'
+                                                    ? '💡 When was this achievement received?'
+                                                    : '💡 Leave end date empty for single-day events'}
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {/* Description */}
                                     <div>

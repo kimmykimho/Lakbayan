@@ -15,7 +15,9 @@ export default function About() {
         { id: 'heritage', name: 'Heritage', icon: '🏺' },
         { id: 'culture', name: 'Culture', icon: '🎭' },
         { id: 'landmark', name: 'Landmarks', icon: '🗿' },
-        { id: 'history', name: 'History', icon: '📜' }
+        { id: 'history', name: 'History', icon: '📜' },
+        { id: 'events', name: 'Events', icon: '📅' },
+        { id: 'achievements', name: 'Achievements', icon: '🏆' }
     ]
 
     useEffect(() => {
@@ -182,6 +184,34 @@ export default function About() {
                                         <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors line-clamp-1">
                                             {item.title}
                                         </h3>
+
+                                        {/* Event/Achievement Date Display */}
+                                        {(item.category === 'events' || item.category === 'achievements') && item.event_date?.start && (
+                                            <div className={`flex items-center gap-2 mb-2 text-sm px-3 py-1.5 rounded-lg ${item.category === 'achievements'
+                                                    ? 'text-amber-600 bg-amber-50'
+                                                    : 'text-blue-600 bg-blue-50'
+                                                }`}>
+                                                <span>{item.category === 'achievements' ? '🏆' : '📅'}</span>
+                                                <span className="font-medium">
+                                                    {new Date(item.event_date.start).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric'
+                                                    })}
+                                                    {item.category === 'events' && item.event_date.end && (
+                                                        <span>
+                                                            {' - '}
+                                                            {new Date(item.event_date.end).toLocaleDateString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                year: 'numeric'
+                                                            })}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        )}
+
                                         <p className="text-gray-600 text-sm line-clamp-3 mb-4">
                                             {item.description}
                                         </p>

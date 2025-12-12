@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../services/api'
+import { useAuthStore } from '../store/authStore'
+import toast from 'react-hot-toast'
 
 export default function Home() {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
   const [currentSlide, setCurrentSlide] = useState(0)
   const [weather, setWeather] = useState(null)
   const [places, setPlaces] = useState([])
@@ -308,6 +312,14 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
+                onClick={() => {
+                  if (isAuthenticated) {
+                    navigate(`/places/${place.id || place._id}`)
+                  } else {
+                    toast.error('Please login to view place details')
+                    navigate('/login', { state: { from: `/places/${place.id || place._id}` } })
+                  }
+                }}
                 className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all cursor-pointer overflow-hidden group border border-gray-100"
               >
                 <div className="relative h-48 overflow-hidden">

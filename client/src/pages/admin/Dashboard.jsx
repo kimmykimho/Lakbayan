@@ -38,6 +38,9 @@ export default function AdminDashboard() {
     totalOwners: 0,
     pendingOwners: 0,
     pendingDrivers: 0,
+    totalAboutItems: 0,
+    upcomingEvents: 0,
+    achievements: 0,
     recentActivities: [],
     popularPlaces: [],
     categoryDistribution: {},
@@ -53,12 +56,13 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [placesRes, usersRes, driversRes, ownersRes, reviewsRes] = await Promise.all([
+      const [placesRes, usersRes, driversRes, ownersRes, reviewsRes, aboutRes] = await Promise.all([
         api.get('/places'),
         api.get('/users'),
         api.get('/drivers').catch(() => ({ data: { data: [] } })),
         api.get('/owners').catch(() => ({ data: { data: [] } })),
-        api.get('/reviews').catch(() => ({ data: { data: [] } }))
+        api.get('/reviews').catch(() => ({ data: { data: [] } })),
+        api.get('/about').catch(() => ({ data: { data: [] } }))
       ])
 
       const places = placesRes.data.data || []
@@ -66,6 +70,15 @@ export default function AdminDashboard() {
       const drivers = driversRes.data.data || []
       const owners = ownersRes.data.data || []
       const reviews = reviewsRes.data.data || []
+      const aboutItems = aboutRes.data.data || []
+
+      // Count events and achievements
+      const upcomingEvents = aboutItems.filter(item => {
+        if (item.category !== 'events') return false
+        if (!item.event_date?.start) return true
+        return new Date(item.event_date.start) >= new Date()
+      }).length
+      const achievements = aboutItems.filter(item => item.category === 'achievements').length
 
       // Calculate stats
       const totalVisits = places.reduce((sum, place) => sum + (place.visitors?.total || 0), 0)
@@ -118,6 +131,9 @@ export default function AdminDashboard() {
         totalOwners: owners.length,
         pendingOwners,
         pendingDrivers,
+        totalAboutItems: aboutItems.length,
+        upcomingEvents,
+        achievements,
         popularPlaces,
         categoryDistribution: categoryDist,
         recentActivities
@@ -170,6 +186,20 @@ export default function AdminDashboard() {
       icon: '⭐',
       gradient: 'from-primary to-primary-dark',
       change: '+8%'
+    },
+    {
+      title: 'Upcoming Events',
+      value: stats.upcomingEvents,
+      icon: '📅',
+      gradient: 'from-blue-500 to-blue-600',
+      change: 'New'
+    },
+    {
+      title: 'Achievements',
+      value: stats.achievements,
+      icon: '🏆',
+      gradient: 'from-amber-500 to-amber-600',
+      change: 'New'
     }
   ]
 
@@ -384,6 +414,14 @@ export default function AdminDashboard() {
           <div className="text-3xl mb-2">🚗</div>
           <h4 className="font-bold text-lg">Drivers</h4>
           <p className="text-sm opacity-90">Approve driver applications</p>
+        </Link>
+        <Link
+          to="/admin/about"
+          className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl text-white hover:shadow-xl transition-all"
+        >
+          <div className="text-3xl mb-2">🏛️</div>
+          <h4 className="font-bold text-lg">About Kitcharao</h4>
+          <p className="text-sm opacity-90">Events, achievements & heritage</p>
         </Link>
       </div>
     </div>

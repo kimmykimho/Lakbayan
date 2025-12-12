@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -32,8 +32,13 @@ ChartJS.register(
 
 export default function AdminAnalytics() {
   const [analytics, setAnalytics] = useState(null)
+  const [aboutStats, setAboutStats] = useState({ events: 0, achievements: 0, total: 0 })
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('7days')
+  const [exporting, setExporting] = useState(false)
+  const [generatingReport, setGeneratingReport] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [aiReport, setAiReport] = useState(null)
 
   useEffect(() => {
     fetchAnalytics()
@@ -42,10 +47,24 @@ export default function AdminAnalytics() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
-      const response = await api.get('/analytics/dashboard')
-      if (response.data.success) {
-        setAnalytics(response.data.data)
+      const [analyticsRes, aboutRes] = await Promise.all([
+        api.get('/analytics/dashboard'),
+        api.get('/about').catch(() => ({ data: { data: [] } }))
+      ])
+
+      if (analyticsRes.data.success) {
+        setAnalytics(analyticsRes.data.data)
       }
+
+      // Count about items by category
+      const aboutItems = aboutRes.data.data || []
+      const upcomingEvents = aboutItems.filter(item => {
+        if (item.category !== 'events') return false
+        if (!item.event_date?.start) return true
+        return new Date(item.event_date.start) >= new Date()
+      }).length
+      const achievements = aboutItems.filter(item => item.category === 'achievements').length
+      setAboutStats({ events: upcomingEvents, achievements, total: aboutItems.length })
     } catch (error) {
       console.error('Failed to fetch analytics:', error)
       console.error('Error details:', error.response?.data)
@@ -53,6 +72,64 @@ export default function AdminAnalytics() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Export to CSV
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true)
+      toast.loading('Generating CSV...', { id: 'csv-export' })
+
+      const response = await api.get('/analytics/export/csv', {
+        responseType: 'blob'
+      })
+
+      // Create download link
+      const blob = new Blob([response.data], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `lakbayan_analytics_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+
+      toast.success('CSV downloaded!', { id: 'csv-export' })
+    } catch (error) {
+      console.error('CSV export error:', error)
+      toast.error('Failed to export CSV', { id: 'csv-export' })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // Generate AI Report
+  const handleGenerateReport = async () => {
+    try {
+      setGeneratingReport(true)
+      setShowReportModal(true)
+      toast.loading('AI is analyzing your data...', { id: 'ai-report' })
+
+      const response = await api.post('/analytics/generate-report')
+
+      if (response.data.success) {
+        setAiReport(response.data.data)
+        toast.success('Report generated!', { id: 'ai-report' })
+      }
+    } catch (error) {
+      console.error('AI report error:', error)
+      toast.error(error.response?.data?.message || 'Failed to generate report', { id: 'ai-report' })
+      setShowReportModal(false)
+    } finally {
+      setGeneratingReport(false)
+    }
+  }
+
+  // Export report as PDF (print)
+  const handleExportPDF = () => {
+    window.print()
+    toast.success('Print dialog opened!')
   }
 
   if (loading) {
@@ -177,6 +254,20 @@ export default function AdminAnalytics() {
       subtitle: 'Estimated earnings',
       icon: '💰',
       color: 'from-primary to-primary-dark'
+    },
+    {
+      label: 'Upcoming Events',
+      value: aboutStats.events,
+      subtitle: 'Scheduled activities',
+      icon: '📅',
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      label: 'Achievements',
+      value: aboutStats.achievements,
+      subtitle: 'Awards & recognitions',
+      icon: '🏆',
+      color: 'from-amber-500 to-amber-600'
     },
   ]
 
@@ -349,30 +440,151 @@ export default function AdminAnalytics() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="mt-8 bg-gradient-to-br from-beige-50 to-beige-50 p-6 rounded-2xl"
+        className="mt-8 bg-gradient-to-br from-primary/5 to-amber-50 p-6 rounded-2xl border-2 border-primary/20"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Export Reports</h3>
-            <p className="text-gray-600">Download analytics data in various formats</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+              <span className="text-2xl">📑</span> Export & Reports
+            </h3>
+            <p className="text-gray-600">Download analytics data or generate AI-powered insights</p>
           </div>
-          <div className="flex gap-3">
-            <button className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all">
-              Export PDF
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleExportPDF}
+              className="px-5 py-2.5 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-2"
+            >
+              <span>🖨️</span> Print / PDF
             </button>
-            <button className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all">
-              Export CSV
+            <button
+              onClick={handleExportCSV}
+              disabled={exporting}
+              className="px-5 py-2.5 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <span>📊</span> {exporting ? 'Exporting...' : 'Export CSV'}
             </button>
-            <button className="px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:shadow-lg transition-all">
-              Generate Report
+            <button
+              onClick={handleGenerateReport}
+              disabled={generatingReport}
+              className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <span>🤖</span> {generatingReport ? 'Generating...' : 'AI Report'}
             </button>
           </div>
         </div>
       </motion.div>
+
+      {/* AI Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => !generatingReport && setShowReportModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-primary to-primary-dark text-white p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🤖</span>
+                    <div>
+                      <h2 className="text-xl font-bold">AI-Generated Analytics Report</h2>
+                      <p className="text-white/80 text-sm">Powered by Gemini AI</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    disabled={generatingReport}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {generatingReport ? (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent mb-4"></div>
+                    <p className="text-gray-600 font-medium">AI is analyzing your data...</p>
+                    <p className="text-gray-400 text-sm mt-1">This may take a few seconds</p>
+                  </div>
+                ) : aiReport ? (
+                  <div className="space-y-4">
+                    {/* Data Snapshot */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gray-50 rounded-xl">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.totalUsers || 0}</p>
+                        <p className="text-xs text-gray-500">Users</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.totalPlaces || 0}</p>
+                        <p className="text-xs text-gray-500">Places</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.totalBookings || 0}</p>
+                        <p className="text-xs text-gray-500">Bookings</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-primary">{aiReport.dataSnapshot?.avgRating || 0}</p>
+                        <p className="text-xs text-gray-500">Avg Rating</p>
+                      </div>
+                    </div>
+
+                    {/* Report Content */}
+                    <div className="prose prose-sm max-w-none">
+                      <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
+                        {aiReport.report}
+                      </div>
+                    </div>
+
+                    {/* Timestamp */}
+                    <div className="text-center text-xs text-gray-400 pt-4 border-t">
+                      Generated: {new Date(aiReport.generatedAt).toLocaleString()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-gray-500">
+                    <p className="text-4xl mb-3">📊</p>
+                    <p>No report generated yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              {!generatingReport && aiReport && (
+                <div className="border-t p-4 flex justify-end gap-3 bg-gray-50">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(aiReport.report)
+                      toast.success('Report copied to clipboard!')
+                    }}
+                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    📋 Copy Report
+                  </button>
+                  <button
+                    onClick={handleGenerateReport}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark flex items-center gap-2"
+                  >
+                    🔄 Regenerate
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
-
-
-
-
