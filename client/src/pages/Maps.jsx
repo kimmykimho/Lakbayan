@@ -66,8 +66,6 @@ export default function Maps() {
   const categories = [
     { id: 'all', name: 'All Places', icon: '🗺️', color: 'blue', count: places.length },
     { id: 'nature', name: 'Nature', icon: '🏞️', color: 'green', count: categoryCounts.nature || 0 },
-
-    { id: 'cultural', name: 'Cultural', icon: '🏛️', color: 'violet', count: categoryCounts.cultural || 0 },
     { id: 'adventure', name: 'Adventure', icon: '🏔️', color: 'red', count: categoryCounts.adventure || 0 },
     { id: 'food', name: 'Food & Dining', icon: '🍽️', color: 'orange', count: categoryCounts.food || 0 },
     { id: 'shopping', name: 'Shopping', icon: '🛍️', color: 'pink', count: categoryCounts.shopping || 0 },

@@ -7,6 +7,8 @@ import Home from './pages/Home'
 import Places from './pages/Places'
 import PlaceDetails from './pages/PlaceDetails'
 import Maps from './pages/Maps'
+import About from './pages/About'
+import AboutDetails from './pages/AboutDetails'
 import Transport from './pages/Transport'
 import TrackTransport from './pages/TrackTransport'
 import Profile from './pages/Profile'
@@ -26,6 +28,7 @@ import AdminBusinesses from './pages/admin/Businesses'
 import AdminAnalytics from './pages/admin/Analytics'
 import AdminOwners from './pages/admin/Owners'
 import AdminDrivers from './pages/admin/Drivers'
+import AdminAbout from './pages/admin/About'
 
 // Owner Pages
 import OwnerDashboard from './pages/owner/Dashboard'
@@ -104,6 +107,8 @@ function App() {
         <Route path="/places" element={<Places />} />
         <Route path="/places/:id" element={<PlaceDetails />} />
         <Route path="/maps" element={<Maps />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/about/:slug" element={<AboutDetails />} />
         <Route path="/transport" element={<Transport />} />
         <Route path="/track-transport/:requestId" element={<TrackTransport />} />
         <Route path="/login" element={<Login />} />
@@ -156,6 +161,7 @@ function App() {
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="owners" element={<AdminOwners />} />
         <Route path="drivers" element={<AdminDrivers />} />
+        <Route path="about" element={<AdminAbout />} />
       </Route>
 
       {/* Owner Routes */}

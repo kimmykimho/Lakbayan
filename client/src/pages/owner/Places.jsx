@@ -58,8 +58,6 @@ export default function OwnerPlaces() {
 
   const categories = [
     { value: 'nature', label: 'Nature & Parks', icon: '🏞️' },
-
-    { value: 'cultural', label: 'Cultural Sites', icon: '🏛️' },
     { value: 'adventure', label: 'Adventure', icon: '🏔️' },
     { value: 'food', label: 'Food & Dining', icon: '🍽️' },
     { value: 'shopping', label: 'Shopping', icon: '🛍️' },

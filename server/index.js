@@ -72,6 +72,7 @@ app.use('/api/owners', require('./routes/owners'));
 app.use('/api/drivers', require('./routes/drivers'));
 app.use('/api/password', require('./routes/password'));
 app.use('/api/chatbot', require('./routes/chatbot'));
+app.use('/api/about', require('./routes/about'));
 app.use('/api', require('./routes/api'));
 
 // Health check

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../services/api'
 import toast from 'react-hot-toast'
@@ -7,6 +7,7 @@ import FavoriteButton from '../components/FavoriteButton'
 import ShareButton from '../components/ShareButton'
 
 export default function Favorites() {
+  const navigate = useNavigate()
   const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -67,6 +68,16 @@ export default function Favorites() {
       {/* Header */}
       <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white py-6 md:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-white/80 hover:text-white mb-4 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="font-medium">Back</span>
+          </button>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

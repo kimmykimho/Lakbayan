@@ -132,8 +132,6 @@ export default function Places() {
   const categories = [
     { id: 'all', name: 'All Places', icon: '🌍', count: places.length },
     { id: 'nature', name: 'Nature', icon: '🏞️', count: categoryCounts.nature || 0 },
-
-    { id: 'cultural', name: 'Cultural', icon: '🏛️', count: categoryCounts.cultural || 0 },
     { id: 'adventure', name: 'Adventure', icon: '🏔️', count: categoryCounts.adventure || 0 },
     { id: 'food', name: 'Food & Dining', icon: '🍽️', count: categoryCounts.food || 0 },
     { id: 'shopping', name: 'Shopping', icon: '🛍️', count: categoryCounts.shopping || 0 },

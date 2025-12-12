@@ -39,7 +39,25 @@ export default function AdminPlaces() {
         activities: [],
         highlights: [],
         status: 'active',
-        featured: false
+        featured: false,
+        // Category-specific fields
+        pricing: {
+            entranceFee: 0,
+            isFree: true,
+            pricePerNight: 0
+        },
+        menu: [],
+        accommodation: {
+            pricePerNight: 0,
+            roomTypes: [],
+            checkInTime: '14:00',
+            checkOutTime: '12:00'
+        },
+        shop: {
+            categories: [],
+            details: '',
+            products: []
+        }
     }
 
     const [newPlaceData, setNewPlaceData] = useState(initialPlaceData)
@@ -47,11 +65,8 @@ export default function AdminPlaces() {
     // Categories matching database schema
     const categories = [
         { value: 'nature', label: '🏞️ Nature' },
-        { value: 'cultural', label: '🏛️ Cultural' },
-        { value: 'beach', label: '🏖️ Beach' },
-        { value: 'food', label: '🍽️ Food' },
         { value: 'adventure', label: '🏔️ Adventure' },
-        { value: 'historical', label: '🏛️ Historical' },
+        { value: 'food', label: '🍽️ Food' },
         { value: 'shopping', label: '🛍️ Shopping' },
         { value: 'accommodation', label: '🏨 Accommodation' }
     ]
@@ -718,6 +733,295 @@ export default function AdminPlaces() {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Category-Specific Fields */}
+                                    {/* Food Category - Menu Items */}
+                                    {newPlaceData.category === 'food' && (
+                                        <div className="bg-orange-50 rounded-lg p-4 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="font-semibold text-gray-700 flex items-center gap-2">🍽️ Menu Items</h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const name = prompt('Enter menu item name:')
+                                                        if (!name) return
+                                                        const description = prompt('Enter description:') || ''
+                                                        const recipe = prompt('Enter recipe/ingredients:') || ''
+                                                        const price = parseFloat(prompt('Enter price (PHP):') || '0')
+                                                        const category = prompt('Category (appetizer/main/dessert/drinks):') || 'main'
+                                                        setNewPlaceData(prev => ({
+                                                            ...prev,
+                                                            menu: [...(prev.menu || []), { name, description, recipe, price, category, isAvailable: true }]
+                                                        }))
+                                                    }}
+                                                    className="px-3 py-1.5 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
+                                                >
+                                                    + Add Item
+                                                </button>
+                                            </div>
+                                            {(newPlaceData.menu || []).length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {newPlaceData.menu.map((item, index) => (
+                                                        <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                                                            <div className="flex-1">
+                                                                <p className="font-medium text-gray-900">{item.name}</p>
+                                                                <p className="text-sm text-gray-500">{item.description}</p>
+                                                                {item.recipe && <p className="text-xs text-orange-600 mt-1">Recipe: {item.recipe}</p>}
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="font-bold text-primary">₱{item.price}</p>
+                                                                <p className="text-xs text-gray-400">{item.category}</p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setNewPlaceData(prev => ({
+                                                                    ...prev,
+                                                                    menu: prev.menu.filter((_, i) => i !== index)
+                                                                }))}
+                                                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-gray-500 text-center py-4">No menu items added yet</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Accommodation Category - Room Types & Pricing */}
+                                    {newPlaceData.category === 'accommodation' && (
+                                        <div className="bg-blue-50 rounded-lg p-4 space-y-4">
+                                            <h3 className="font-semibold text-gray-700 flex items-center gap-2">🏨 Accommodation Details</h3>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Night (₱)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={newPlaceData.accommodation?.pricePerNight || newPlaceData.pricing?.pricePerNight || 0}
+                                                        onChange={(e) => setNewPlaceData(prev => ({
+                                                            ...prev,
+                                                            accommodation: { ...prev.accommodation, pricePerNight: parseFloat(e.target.value) || 0 },
+                                                            pricing: { ...prev.pricing, pricePerNight: parseFloat(e.target.value) || 0 }
+                                                        }))}
+                                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                                                        placeholder="0"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Check-in / Check-out</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="time"
+                                                            value={newPlaceData.accommodation?.checkInTime || '14:00'}
+                                                            onChange={(e) => setNewPlaceData(prev => ({
+                                                                ...prev,
+                                                                accommodation: { ...prev.accommodation, checkInTime: e.target.value }
+                                                            }))}
+                                                            className="flex-1 px-2 py-2 border border-gray-200 rounded-lg text-sm"
+                                                        />
+                                                        <input
+                                                            type="time"
+                                                            value={newPlaceData.accommodation?.checkOutTime || '12:00'}
+                                                            onChange={(e) => setNewPlaceData(prev => ({
+                                                                ...prev,
+                                                                accommodation: { ...prev.accommodation, checkOutTime: e.target.value }
+                                                            }))}
+                                                            className="flex-1 px-2 py-2 border border-gray-200 rounded-lg text-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-medium text-gray-700">Room Types</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const name = prompt('Room type name (e.g., Deluxe, Suite):')
+                                                        if (!name) return
+                                                        const capacity = parseInt(prompt('Capacity (guests):') || '2')
+                                                        const price = parseFloat(prompt('Price per night (₱):') || '0')
+                                                        setNewPlaceData(prev => ({
+                                                            ...prev,
+                                                            accommodation: {
+                                                                ...prev.accommodation,
+                                                                roomTypes: [...(prev.accommodation?.roomTypes || []), { name, capacity, price, amenities: [] }]
+                                                            }
+                                                        }))
+                                                    }}
+                                                    className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+                                                >
+                                                    + Add Room
+                                                </button>
+                                            </div>
+                                            {(newPlaceData.accommodation?.roomTypes || []).length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {newPlaceData.accommodation.roomTypes.map((room, index) => (
+                                                        <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-lg border">
+                                                            <div className="flex-1">
+                                                                <p className="font-medium text-gray-900">{room.name}</p>
+                                                                <p className="text-sm text-gray-500">Capacity: {room.capacity} guests</p>
+                                                            </div>
+                                                            <p className="font-bold text-primary">₱{room.price}/night</p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setNewPlaceData(prev => ({
+                                                                    ...prev,
+                                                                    accommodation: {
+                                                                        ...prev.accommodation,
+                                                                        roomTypes: prev.accommodation.roomTypes.filter((_, i) => i !== index)
+                                                                    }
+                                                                }))}
+                                                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-gray-500 text-center py-2">No room types added</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Shopping Category - Products */}
+                                    {newPlaceData.category === 'shopping' && (
+                                        <div className="bg-purple-50 rounded-lg p-4 space-y-4">
+                                            <h3 className="font-semibold text-gray-700 flex items-center gap-2">🛍️ Shop Details</h3>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Shop Description</label>
+                                                <textarea
+                                                    value={newPlaceData.shop?.details || ''}
+                                                    onChange={(e) => setNewPlaceData(prev => ({
+                                                        ...prev,
+                                                        shop: { ...prev.shop, details: e.target.value }
+                                                    }))}
+                                                    rows={2}
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                                                    placeholder="Describe what the shop offers..."
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">Shop Categories</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {['Clothing', 'Electronics', 'Groceries', 'Souvenirs', 'Crafts', 'Jewelry', 'Home Decor'].map(cat => (
+                                                        <button
+                                                            key={cat}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const current = newPlaceData.shop?.categories || []
+                                                                const updated = current.includes(cat)
+                                                                    ? current.filter(c => c !== cat)
+                                                                    : [...current, cat]
+                                                                setNewPlaceData(prev => ({
+                                                                    ...prev,
+                                                                    shop: { ...prev.shop, categories: updated }
+                                                                }))
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${(newPlaceData.shop?.categories || []).includes(cat)
+                                                                    ? 'bg-purple-500 text-white'
+                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300'
+                                                                }`}
+                                                        >
+                                                            {cat}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-medium text-gray-700">Products</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const name = prompt('Product name:')
+                                                        if (!name) return
+                                                        const description = prompt('Description:') || ''
+                                                        const price = parseFloat(prompt('Price (₱):') || '0')
+                                                        const category = prompt('Category:') || 'General'
+                                                        setNewPlaceData(prev => ({
+                                                            ...prev,
+                                                            shop: {
+                                                                ...prev.shop,
+                                                                products: [...(prev.shop?.products || []), { name, description, price, category }]
+                                                            }
+                                                        }))
+                                                    }}
+                                                    className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600"
+                                                >
+                                                    + Add Product
+                                                </button>
+                                            </div>
+                                            {(newPlaceData.shop?.products || []).length > 0 ? (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {newPlaceData.shop.products.map((product, index) => (
+                                                        <div key={index} className="p-3 bg-white rounded-lg border relative group">
+                                                            <p className="font-medium text-gray-900 text-sm">{product.name}</p>
+                                                            <p className="text-xs text-gray-500">{product.category}</p>
+                                                            <p className="font-bold text-primary text-sm mt-1">₱{product.price}</p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setNewPlaceData(prev => ({
+                                                                    ...prev,
+                                                                    shop: {
+                                                                        ...prev.shop,
+                                                                        products: prev.shop.products.filter((_, i) => i !== index)
+                                                                    }
+                                                                }))}
+                                                                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-gray-500 text-center py-2">No products added</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Nature/Adventure Category - Pricing */}
+                                    {(newPlaceData.category === 'nature' || newPlaceData.category === 'adventure') && (
+                                        <div className="bg-green-50 rounded-lg p-4 space-y-4">
+                                            <h3 className="font-semibold text-gray-700 flex items-center gap-2">💰 Pricing</h3>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="flex items-center gap-2 mb-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={newPlaceData.pricing?.isFree || false}
+                                                            onChange={(e) => setNewPlaceData(prev => ({
+                                                                ...prev,
+                                                                pricing: { ...prev.pricing, isFree: e.target.checked, entranceFee: e.target.checked ? 0 : prev.pricing?.entranceFee }
+                                                            }))}
+                                                            className="w-4 h-4 rounded"
+                                                        />
+                                                        <span className="text-sm font-medium text-gray-700">Free Entrance</span>
+                                                    </label>
+                                                    {!newPlaceData.pricing?.isFree && (
+                                                        <input
+                                                            type="number"
+                                                            value={newPlaceData.pricing?.entranceFee || 0}
+                                                            onChange={(e) => setNewPlaceData(prev => ({
+                                                                ...prev,
+                                                                pricing: { ...prev.pricing, entranceFee: parseFloat(e.target.value) || 0 }
+                                                            }))}
+                                                            className="w-full px-4 py-2 border border-gray-200 rounded-lg"
+                                                            placeholder="Entrance fee (₱)"
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Featured Toggle */}
                                     <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg">

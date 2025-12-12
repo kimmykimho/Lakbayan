@@ -11,7 +11,10 @@ export default function PublicLayout() {
   const { user, isAuthenticated, logout } = useAuthStore()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [applyDropdownOpen, setApplyDropdownOpen] = useState(false)
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const applyDropdownRef = useRef(null)
+  const profileDropdownRef = useRef(null)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -19,14 +22,24 @@ export default function PublicLayout() {
       if (applyDropdownRef.current && !applyDropdownRef.current.contains(event.target)) {
         setApplyDropdownOpen(false)
       }
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setProfileDropdownOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const handleLogout = async () => {
+    setShowLogoutModal(false)
+    setProfileDropdownOpen(false)
+    setMobileMenuOpen(false)
     await logout()
     navigate('/')
+  }
+
+  const confirmLogout = () => {
+    setShowLogoutModal(true)
   }
 
   // Get dashboard path based on user role
@@ -47,23 +60,17 @@ export default function PublicLayout() {
 
   const navigation = [
     { name: 'Home', path: '/', icon: '🏠' },
+    { name: 'About', path: '/about', icon: '🏛️' },
     { name: 'Places', path: '/places', icon: '📍' },
     { name: 'Maps', path: '/maps', icon: '🗺️' },
     { name: 'Transport', path: '/transport', icon: '🚗' }
   ]
 
-  const authenticatedNavigation = isAuthenticated
-    ? [
-      { name: 'Favorites', path: '/favorites', icon: '❤️' },
-      { name: 'My Bookings', path: '/my-bookings', icon: '📅' }
-    ]
-    : []
+  // Remove Favorites and Bookings from main nav - they're now in profile dropdown
+  const authenticatedNavigation = []
 
-  // Add Dashboard link if user has a dashboard (after Favorites)
+  // Dashboard is now in profile dropdown, not main nav
   const dashboardPath = getDashboardPath()
-  const dashboardNavigation = dashboardPath
-    ? [{ name: 'Dashboard', path: dashboardPath, icon: '📊' }]
-    : []
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
 
@@ -84,7 +91,7 @@ export default function PublicLayout() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-0.5 lg:space-x-1 flex-1 justify-center max-w-3xl lg:max-w-4xl mx-2 overflow-x-auto scrollbar-hide">
-              {[...navigation, ...authenticatedNavigation, ...dashboardNavigation].map((item) => (
+              {navigation.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
@@ -105,22 +112,86 @@ export default function PublicLayout() {
             <div className="hidden md:flex items-center gap-2 lg:gap-3 flex-shrink-0">
               {isAuthenticated ? (
                 <>
-                  <Link
-                    to="/profile"
-                    className="flex items-center gap-1.5 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
-                  >
-                    <div className="w-7 h-7 lg:w-8 lg:h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-xs lg:text-sm flex-shrink-0">
+                  {/* Profile Dropdown */}
+                  <div className="relative" ref={profileDropdownRef}>
+                    <button
+                      onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                      className="flex items-center justify-center w-9 h-9 lg:w-10 lg:h-10 bg-gradient-to-br from-primary to-primary-dark rounded-full text-white font-semibold text-sm lg:text-base hover:shadow-lg transition-all"
+                      title={user?.name}
+                    >
                       {user?.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="hidden xl:inline max-w-[100px] truncate text-sm">{user?.name}</span>
-                  </Link>
+                    </button>
 
-                  <button
-                    onClick={handleLogout}
-                    className="px-2 lg:px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-all text-sm whitespace-nowrap"
-                  >
-                    Logout
-                  </button>
+                    <AnimatePresence>
+                      {profileDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                        >
+                          {/* User Info Header */}
+                          <div className="px-4 py-3 bg-gradient-to-r from-primary to-primary-dark text-white">
+                            <p className="font-semibold truncate">{user?.name}</p>
+                            <p className="text-sm opacity-80 truncate">{user?.email}</p>
+                          </div>
+
+                          <div className="p-2">
+                            <Link
+                              to="/profile"
+                              onClick={() => setProfileDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-all"
+                            >
+                              <span className="text-lg">👤</span>
+                              <span className="font-medium">Profile</span>
+                            </Link>
+
+                            {dashboardPath && (
+                              <Link
+                                to={dashboardPath}
+                                onClick={() => setProfileDropdownOpen(false)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-all"
+                              >
+                                <span className="text-lg">📊</span>
+                                <span className="font-medium">Dashboard</span>
+                              </Link>
+                            )}
+
+                            <div className="border-t my-2"></div>
+
+                            <Link
+                              to="/favorites"
+                              onClick={() => setProfileDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-all"
+                            >
+                              <span className="text-lg">❤️</span>
+                              <span className="font-medium">My Favorites</span>
+                            </Link>
+
+                            <Link
+                              to="/my-bookings"
+                              onClick={() => setProfileDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-all"
+                            >
+                              <span className="text-lg">📅</span>
+                              <span className="font-medium">My Bookings</span>
+                            </Link>
+
+                            <div className="border-t my-2"></div>
+
+                            <button
+                              onClick={confirmLogout}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-all"
+                            >
+                              <span className="text-lg">🚪</span>
+                              <span className="font-medium">Logout</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   {/* Hamburger Menu for Apply Options - Only show for tourists */}
                   {user?.role === 'tourist' && (
@@ -220,7 +291,7 @@ export default function PublicLayout() {
                 className="md:hidden overflow-hidden border-t"
               >
                 <div className="py-3 space-y-1">
-                  {[...navigation, ...authenticatedNavigation, ...dashboardNavigation].map((item) => (
+                  {navigation.map((item) => (
                     <Link
                       key={item.path}
                       to={item.path}
@@ -246,6 +317,38 @@ export default function PublicLayout() {
                             {user?.name?.charAt(0).toUpperCase()}
                           </div>
                           <span className="truncate">{user?.name}</span>
+                        </Link>
+
+                        {/* Dashboard - Show for non-tourist roles */}
+                        {dashboardPath && (
+                          <Link
+                            to={dashboardPath}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
+                          >
+                            <span className="text-xl">📊</span>
+                            <span>Dashboard</span>
+                          </Link>
+                        )}
+
+                        {/* Favorites */}
+                        <Link
+                          to="/favorites"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
+                        >
+                          <span className="text-xl">❤️</span>
+                          <span>My Favorites</span>
+                        </Link>
+
+                        {/* Bookings */}
+                        <Link
+                          to="/my-bookings"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
+                        >
+                          <span className="text-xl">📅</span>
+                          <span>My Bookings</span>
                         </Link>
 
                         {/* Mobile Apply Options - Only show for tourists */}
@@ -281,8 +384,8 @@ export default function PublicLayout() {
 
                         <button
                           onClick={() => {
-                            handleLogout()
                             setMobileMenuOpen(false)
+                            confirmLogout()
                           }}
                           className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-all"
                         >
@@ -395,6 +498,49 @@ export default function PublicLayout() {
       </footer>
 
       {/* Floating Chat/Help Button - Removing this as we have Chatbot now */}
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            onClick={() => setShowLogoutModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">🚪</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Logout</h3>
+                <p className="text-gray-600 mb-6">Are you sure you want to logout from your account?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowLogoutModal(false)}
+                    className="flex-1 px-4 py-2.5 border-2 border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Kitcharao Chatbot - Only show for logged in users */}
       {isAuthenticated && <Chatbot />}
