@@ -3,12 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../services/api'
 import ImageCarousel from '../components/ImageCarousel'
+import useDataCache from '../store/dataCache'
 
 export default function About() {
     const navigate = useNavigate()
     const [items, setItems] = useState([])
     const [loading, setLoading] = useState(true)
     const [selectedCategory, setSelectedCategory] = useState('all')
+
+    // Use cache store
+    const { getAboutItems, setAboutItems: setCachedAbout, setAboutItemsLoading } = useDataCache()
 
     const categories = [
         { id: 'all', name: 'All', icon: '🏛️' },
@@ -25,16 +29,40 @@ export default function About() {
     }, [])
 
     const fetchItems = async () => {
+        // Check cache first
+        const cachedData = getAboutItems()
+        if (cachedData && cachedData.length > 0) {
+            console.log('📦 Using cached about items')
+            setItems(cachedData)
+            setLoading(false)
+            return
+        }
+
         try {
             setLoading(true)
+            setAboutItemsLoading(true)
             const response = await api.get('/about')
-            setItems(response.data.data || [])
+            const data = response.data.data || []
+
+            if (data.length > 0) {
+                console.log('📦 Caching', data.length, 'about items')
+                setCachedAbout(data)
+            }
+
+            setItems(data)
         } catch (error) {
             console.error('Failed to fetch about items:', error)
-            // Show empty state if API fails - no placeholder data
-            setItems([])
+            // Try stale cache on error
+            const staleCache = useDataCache.getState().aboutItems
+            if (staleCache && staleCache.length > 0) {
+                console.log('📦 Using stale cache due to error')
+                setItems(staleCache)
+            } else {
+                setItems([])
+            }
         } finally {
             setLoading(false)
+            setAboutItemsLoading(false)
         }
     }
 
@@ -113,7 +141,7 @@ export default function About() {
                         <p className="text-gray-600">Check back soon for more about Kitcharao!</p>
                     </div>
                 ) : (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {filteredItems.map((item, index) => (
                             <motion.div
                                 key={item.id}
@@ -124,10 +152,10 @@ export default function About() {
                             >
                                 <Link
                                     to={`/about/${item.slug || item.id}`}
-                                    className="block bg-white rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden"
+                                    className="block bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden"
                                 >
                                     {/* Image */}
-                                    <div className="relative h-48 sm:h-56">
+                                    <div className="relative h-40 sm:h-48 md:h-56">
                                         {item.images && item.images.length > 0 ? (
                                             <img
                                                 src={typeof item.images[0] === 'object' ? item.images[0].url : item.images[0]}

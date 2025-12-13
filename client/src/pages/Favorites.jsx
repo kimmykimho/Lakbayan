@@ -5,21 +5,36 @@ import api from '../services/api'
 import toast from 'react-hot-toast'
 import FavoriteButton from '../components/FavoriteButton'
 import ShareButton from '../components/ShareButton'
+import useDataCache from '../store/dataCache'
 
 export default function Favorites() {
   const navigate = useNavigate()
   const [favorites, setFavorites] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Use cache
+  const { getFavorites, setFavorites: setCachedFavorites, invalidateFavorites } = useDataCache()
+
   useEffect(() => {
     fetchFavorites()
   }, [])
 
   const fetchFavorites = async () => {
+    // Check cache first
+    const cachedFavorites = getFavorites()
+    if (cachedFavorites) {
+      console.log('📦 Using cached favorites data')
+      setFavorites(cachedFavorites)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await api.get('/favorites')
-      setFavorites(response.data.data || [])
+      const data = response.data.data || []
+      setFavorites(data)
+      setCachedFavorites(data)
     } catch (error) {
       toast.error('Failed to load favorites')
       console.error(error)

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import useDashboardCache from '../../store/dashboardCache'
 
 export default function DriverDashboard() {
   const [profile, setProfile] = useState(null)
@@ -10,21 +11,59 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true)
   const [isAvailable, setIsAvailable] = useState(false)
 
+  // Use dashboard cache
+  const { getDriverData, setDriverData } = useDashboardCache()
+
   useEffect(() => {
     fetchData()
   }, [])
 
   const fetchData = async () => {
+    // Check cache first
+    const cachedData = getDriverData()
+    if (cachedData?.profile) {
+      console.log('📦 Using cached driver dashboard data')
+      setProfile(cachedData.profile)
+      setStats(cachedData.stats)
+      setIsAvailable(cachedData.profile?.availability?.isAvailable || false)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
-      const [profileRes, statsRes] = await Promise.all([
+
+      // Use Promise.allSettled for better error handling
+      const results = await Promise.allSettled([
         api.get('/drivers/profile'),
         api.get('/drivers/statistics')
       ])
-      
-      setProfile(profileRes.data.data)
-      setStats(statsRes.data.data)
-      setIsAvailable(profileRes.data.data.availability?.isAvailable || false)
+
+      let fetchedProfile = null
+      let fetchedStats = null
+
+      // Extract data safely
+      if (results[0].status === 'fulfilled') {
+        fetchedProfile = results[0].value.data.data
+        setProfile(fetchedProfile)
+        setIsAvailable(fetchedProfile?.availability?.isAvailable || false)
+      }
+
+      if (results[1].status === 'fulfilled') {
+        fetchedStats = results[1].value.data.data
+        setStats(fetchedStats)
+      }
+
+      // Cache the data if we got profile
+      if (fetchedProfile) {
+        setDriverData(fetchedProfile, fetchedStats)
+      }
+
+      // Show error only if both failed
+      if (results[0].status === 'rejected' && results[1].status === 'rejected') {
+        console.error('Failed to fetch driver data')
+        toast.error('Failed to load dashboard data')
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error)
       toast.error('Failed to load dashboard data')
@@ -221,7 +260,7 @@ export default function DriverDashboard() {
             </div>
           </button>
 
-          <Link 
+          <Link
             to="/driver/requests"
             className="bg-primary text-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all"
           >

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import ImageCarousel from '../components/ImageCarousel'
 import FavoriteButton from '../components/FavoriteButton'
 import ShareButton from '../components/ShareButton'
+import useDataCache from '../store/dataCache'
 
 export default function Places() {
   const [filter, setFilter] = useState('all')
@@ -17,16 +18,29 @@ export default function Places() {
   const [showNearby, setShowNearby] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
 
+  // Use cache store
+  const { getPlaces, setPlaces: setCachedPlaces, placesLoading, setPlacesLoading } = useDataCache()
+
   useEffect(() => {
     fetchPlaces()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchPlaces = async () => {
+    // Check cache first
+    const cachedData = getPlaces()
+    if (cachedData && cachedData.length > 0) {
+      console.log('📦 Using cached places data')
+      setPlaces(cachedData)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
+      setPlacesLoading(true)
       const response = await api.get('/places')
       console.log('📍 Places API response:', response.data)
-      // Handle both response formats: { success: true, data: [...] } or { data: [...] }
+
       if (response.data) {
         let placesData = null
         if (response.data.success && response.data.data) {
@@ -38,18 +52,26 @@ export default function Places() {
         }
 
         if (placesData && placesData.length > 0) {
-          console.log('📍 First place object:', placesData[0])
-          console.log('📍 First place ID:', placesData[0].id, 'or _id:', placesData[0]._id)
+          console.log('📍 Caching', placesData.length, 'places')
+          // Save to cache
+          setCachedPlaces(placesData)
         }
 
         setPlaces(placesData || [])
       }
     } catch (error) {
       console.error('Failed to fetch places:', error)
-      // Set empty array on error so UI shows "No places" instead of crashing
-      setPlaces([])
+      // Try to use stale cache on error
+      const staleCache = useDataCache.getState().places
+      if (staleCache && staleCache.length > 0) {
+        console.log('📦 Using stale cache due to error')
+        setPlaces(staleCache)
+      } else {
+        setPlaces([])
+      }
     } finally {
       setLoading(false)
+      setPlacesLoading(false)
     }
   }
 

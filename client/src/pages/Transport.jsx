@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
+import useDataCache from '../store/dataCache'
 
 export default function Transport() {
   const location = useLocation()
@@ -24,6 +25,9 @@ export default function Transport() {
     lng: '',
     address: ''
   })
+
+  // Use cache
+  const { getAvailableDrivers, setAvailableDrivers } = useDataCache()
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -111,11 +115,23 @@ export default function Transport() {
   ]
 
   const fetchDrivers = async () => {
+    // Check cache first
+    const cachedDrivers = getAvailableDrivers()
+    if (cachedDrivers && cachedDrivers.length > 0) {
+      console.log('📦 Using cached drivers data')
+      setDrivers(cachedDrivers)
+      setInitialLoading(false)
+      return
+    }
+
     try {
       const response = await api.get('/drivers')
       console.log('Fetched drivers:', response.data)
-      // Drivers are already filtered by availability on the backend
-      setDrivers(response.data.data || [])
+      const data = response.data.data || []
+      setDrivers(data)
+      if (data.length > 0) {
+        setAvailableDrivers(data)
+      }
     } catch (error) {
       console.error('Failed to fetch drivers:', error)
       toast.error('Unable to fetch available drivers')

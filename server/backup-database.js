@@ -15,18 +15,19 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Tables to backup
+// EXACT 11 TABLES from database schema
 const TABLES = [
     'users',
     'places',
     'about_items',
+    'business_owners',
+    'businesses',
+    'drivers',
     'bookings',
     'reviews',
-    'favorites',
-    'owner_applications',
-    'driver_applications',
-    'drivers',
-    'transport_requests'
+    'transport_requests',
+    'user_favorites',
+    'user_owned_places'
 ];
 
 async function backupTable(tableName) {

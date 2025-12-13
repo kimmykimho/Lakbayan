@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import useDataCache from '../store/dataCache'
 import toast from 'react-hot-toast'
 
 export default function Home() {
@@ -14,18 +15,30 @@ export default function Home() {
   const [topPlaces, setTopPlaces] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Use cache
+  const { getWeather, setWeather: setCachedWeather, getPlaces, setPlaces: setCachedPlaces } = useDataCache()
+
   useEffect(() => {
     fetchWeather()
     fetchPlaces()
   }, [])
 
   const fetchWeather = async () => {
+    // Check cache first
+    const cachedWeather = getWeather()
+    if (cachedWeather) {
+      console.log('📦 Using cached weather data')
+      setWeather(cachedWeather)
+      return
+    }
+
     try {
       const response = await api.get('/external/weather', {
         params: { lat: 8.9600, lon: 125.4300 }
       })
       if (response.data.success) {
         setWeather(response.data.data)
+        setCachedWeather(response.data.data)
       }
     } catch (error) {
       console.error('Failed to fetch weather:', error)
@@ -33,6 +46,21 @@ export default function Home() {
   }
 
   const fetchPlaces = async () => {
+    // Check cache first
+    const cachedPlaces = getPlaces()
+    if (cachedPlaces && cachedPlaces.length > 0) {
+      console.log('📦 Using cached places data')
+      const sorted = [...cachedPlaces].sort((a, b) => {
+        const aVisits = a.visitors?.total || 0
+        const bVisits = b.visitors?.total || 0
+        return bVisits - aVisits
+      })
+      setTopPlaces(sorted.slice(0, 5))
+      setPlaces(sorted.slice(0, 3))
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await api.get('/places')
@@ -44,6 +72,11 @@ export default function Home() {
         fetchedPlaces = response.data.data
       } else if (Array.isArray(response.data)) {
         fetchedPlaces = response.data
+      }
+
+      // Cache the data
+      if (fetchedPlaces.length > 0) {
+        setCachedPlaces(fetchedPlaces)
       }
 
       // Sort by most visited (total visitors)

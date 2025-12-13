@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import api from '../services/api'
 import toast from 'react-hot-toast'
 import PhotoGallery from '../components/PhotoGallery'
+import useDataCache from '../store/dataCache'
 
 export default function MyBookings() {
   const navigate = useNavigate()
@@ -11,6 +12,9 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [transportRequests, setTransportRequests] = useState({})
+
+  // Use cache
+  const { getBookings, setBookings: setCachedBookings } = useDataCache()
 
   useEffect(() => {
     fetchBookings()
@@ -22,10 +26,21 @@ export default function MyBookings() {
   }, [])
 
   const fetchBookings = async () => {
+    // Check cache first
+    const cachedBookings = getBookings()
+    if (cachedBookings && cachedBookings.length > 0) {
+      console.log('📦 Using cached bookings data')
+      setBookings(cachedBookings)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await api.get('/bookings')
-      setBookings(response.data.data || [])
+      const data = response.data.data || []
+      setBookings(data)
+      setCachedBookings(data)
     } catch (error) {
       toast.error('Failed to load bookings')
       console.error(error)

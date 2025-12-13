@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import useDataCache from '../store/dataCache'
 
 // Fix Leaflet default marker icon
 delete L.Icon.Default.prototype._getIconUrl
@@ -47,6 +48,9 @@ export default function Maps() {
   const [userLocation, setUserLocation] = useState(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+
+  // Use cache
+  const { getPlaces, setPlaces: setCachedPlaces } = useDataCache()
 
   useEffect(() => {
     const checkMobile = () => {
@@ -94,10 +98,23 @@ export default function Maps() {
   }
 
   const fetchPlaces = async () => {
+    // Check cache first
+    const cachedPlaces = getPlaces()
+    if (cachedPlaces && cachedPlaces.length > 0) {
+      console.log('📦 Using cached places data')
+      setPlaces(cachedPlaces)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await api.get('/places')
-      setPlaces(response.data.data)
+      const data = response.data.data || []
+      setPlaces(data)
+      if (data.length > 0) {
+        setCachedPlaces(data)
+      }
     } catch (error) {
       toast.error('Failed to load places')
       console.error(error)
@@ -416,11 +433,11 @@ export default function Maps() {
                 <div className="space-y-3 sm:space-y-4">
                   {filteredPlaces.map((place, index) => (
                     <motion.div
-                      key={place._id}
+                      key={place.id || place._id || index}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className={`p-3 sm:p-4 border-2 rounded-lg sm:rounded-xl hover:shadow-md transition-all cursor-pointer ${selectedPlace?._id === place._id ? 'border-primary bg-beige-50' : 'border-gray-200'
+                      className={`p-3 sm:p-4 border-2 rounded-lg sm:rounded-xl hover:shadow-md transition-all cursor-pointer ${selectedPlace?.id === place.id || selectedPlace?._id === place._id ? 'border-primary bg-beige-50' : 'border-gray-200'
                         }`}
                       onClick={() => {
                         setSelectedPlace(place)
@@ -465,7 +482,7 @@ export default function Maps() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                navigate(`/places/${place._id}`)
+                                navigate(`/places/${place.id || place._id}`)
                               }}
                               className="w-full px-2 sm:px-3 py-1.5 sm:py-2 bg-beige-400 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-beige-500 transition-colors"
                             >

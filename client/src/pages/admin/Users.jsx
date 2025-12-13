@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
 import GrantDriverRoleModal from '../../components/GrantDriverRoleModal'
+import useDataCache from '../../store/dataCache'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -61,15 +62,29 @@ export default function AdminUsers() {
   })
   const [uploadingPlaceImages, setUploadingPlaceImages] = useState(false)
 
+  // Use cache
+  const { getUsers, setUsers: setCachedUsers, invalidateUsers } = useDataCache()
+
   useEffect(() => {
     fetchUsers()
   }, [])
 
   const fetchUsers = async () => {
+    // Check cache first
+    const cachedUsers = getUsers()
+    if (cachedUsers && cachedUsers.length > 0) {
+      console.log('📦 Using cached users data')
+      setUsers(cachedUsers)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await api.get('/users')
-      setUsers(response.data.data || [])
+      const data = response.data.data || []
+      setUsers(data)
+      setCachedUsers(data)
     } catch (error) {
       toast.error('Failed to fetch users')
       console.error(error)

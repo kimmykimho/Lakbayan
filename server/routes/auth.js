@@ -367,23 +367,26 @@ router.post('/oauth-register', async (req, res) => {
       });
     }
 
-    // Check if user exists
-    let { data: user, error } = await supabase
+    const normalizedEmail = email.toLowerCase();
+
+    // Check if user already exists - use maybeSingle to avoid error when not found
+    let { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    let user = existingUser;
 
     if (!user) {
       // Create new user with random password (won't be used for OAuth)
-      // Use supabaseAdmin to bypass RLS policies for user creation
       const randomPassword = await hashPassword(Math.random().toString(36).slice(-10));
 
       const { data: newUser, error: createError } = await supabaseAdmin
         .from('users')
         .insert({
           name: name || email.split('@')[0],
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           password: randomPassword,
           avatar: avatar,
           role: 'tourist'
@@ -392,10 +395,24 @@ router.post('/oauth-register', async (req, res) => {
         .single();
 
       if (createError) {
-        throw new Error(createError.message);
+        // If duplicate key error, try to fetch existing user
+        if (createError.message.includes('duplicate key')) {
+          const { data: fetchedUser } = await supabaseAdmin
+            .from('users')
+            .select('*')
+            .eq('email', normalizedEmail)
+            .single();
+          user = fetchedUser;
+        } else {
+          throw new Error(createError.message);
+        }
+      } else {
+        user = newUser;
       }
+    }
 
-      user = newUser;
+    if (!user) {
+      throw new Error('Failed to find or create user');
     }
 
     // Remove password from response
@@ -404,9 +421,12 @@ router.post('/oauth-register', async (req, res) => {
     const token = generateToken(user.id);
 
     // Update last login
-    await supabase
+    await supabaseAdmin
       .from('users')
-      .update({ last_login: new Date().toISOString() })
+      .update({
+        last_login: new Date().toISOString(),
+        avatar: avatar || user.avatar  // Update avatar if provided
+      })
       .eq('id', user.id);
 
     res.json({

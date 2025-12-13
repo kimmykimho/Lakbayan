@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../../services/api'
+import useDataCache from '../../store/dataCache'
+import useDashboardCache from '../../store/dashboardCache'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -49,28 +51,53 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [weather, setWeather] = useState(null)
 
+  // Use cache for places and about items
+  const { getPlaces, getAboutItems, setPlaces: setCachedPlaces, setAboutItems: setCachedAbout } = useDataCache()
+
+  // Use dashboard cache for full stats
+  const { getAdminStats, setAdminStats } = useDashboardCache()
+
   useEffect(() => {
     fetchDashboardData()
     fetchWeather()
   }, [])
 
   const fetchDashboardData = async () => {
+    // Check dashboard cache first
+    const cachedStats = getAdminStats()
+    if (cachedStats) {
+      console.log('📦 Using cached admin dashboard data')
+      setStats(cachedStats)
+      setLoading(false)
+      return
+    }
+
     try {
-      const [placesRes, usersRes, driversRes, ownersRes, reviewsRes, aboutRes] = await Promise.all([
-        api.get('/places'),
-        api.get('/users'),
+      // Check cache first for places and about items
+      const cachedPlaces = getPlaces()
+      const cachedAbout = getAboutItems()
+
+      // Fetch all data with proper error handling
+      const results = await Promise.allSettled([
+        cachedPlaces ? Promise.resolve({ data: { data: cachedPlaces } }) : api.get('/places'),
+        api.get('/users').catch(() => ({ data: { data: [] } })),
         api.get('/drivers').catch(() => ({ data: { data: [] } })),
         api.get('/owners').catch(() => ({ data: { data: [] } })),
         api.get('/reviews').catch(() => ({ data: { data: [] } })),
-        api.get('/about').catch(() => ({ data: { data: [] } }))
+        cachedAbout ? Promise.resolve({ data: { data: cachedAbout } }) : api.get('/about')
       ])
 
-      const places = placesRes.data.data || []
-      const users = usersRes.data.data || []
-      const drivers = driversRes.data.data || []
-      const owners = ownersRes.data.data || []
-      const reviews = reviewsRes.data.data || []
-      const aboutItems = aboutRes.data.data || []
+      // Extract data safely from results
+      const places = results[0].status === 'fulfilled' ? (results[0].value.data.data || []) : []
+      const users = results[1].status === 'fulfilled' ? (results[1].value.data.data || []) : []
+      const drivers = results[2].status === 'fulfilled' ? (results[2].value.data.data || []) : []
+      const owners = results[3].status === 'fulfilled' ? (results[3].value.data.data || []) : []
+      const reviews = results[4].status === 'fulfilled' ? (results[4].value.data.data || []) : []
+      const aboutItems = results[5].status === 'fulfilled' ? (results[5].value.data.data || []) : []
+
+      // Cache the fetched data
+      if (!cachedPlaces && places.length > 0) setCachedPlaces(places)
+      if (!cachedAbout && aboutItems.length > 0) setCachedAbout(aboutItems)
 
       // Count events and achievements
       const upcomingEvents = aboutItems.filter(item => {
@@ -122,7 +149,7 @@ export default function AdminDashboard() {
         }))
       ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5)
 
-      setStats({
+      const newStats = {
         totalPlaces: places.length,
         totalUsers: users.length,
         totalVisits,
@@ -137,7 +164,11 @@ export default function AdminDashboard() {
         popularPlaces,
         categoryDistribution: categoryDist,
         recentActivities
-      })
+      }
+
+      // Cache the computed stats
+      setAdminStats(newStats)
+      setStats(newStats)
       setLoading(false)
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)

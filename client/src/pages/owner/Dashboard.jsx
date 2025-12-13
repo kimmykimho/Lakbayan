@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import useDashboardCache from '../../store/dashboardCache'
 
 export default function OwnerDashboard() {
   const [profile, setProfile] = useState(null)
@@ -10,22 +11,64 @@ export default function OwnerDashboard() {
   const [loading, setLoading] = useState(true)
   const [recentReviews, setRecentReviews] = useState([])
 
+  // Use dashboard cache
+  const { getOwnerData, setOwnerData } = useDashboardCache()
+
   useEffect(() => {
     fetchData()
   }, [])
 
   const fetchData = async () => {
+    // Check cache first
+    const cachedData = getOwnerData()
+    if (cachedData?.profile) {
+      console.log('📦 Using cached owner dashboard data')
+      setProfile(cachedData.profile)
+      setStats(cachedData.stats)
+      setRecentReviews(cachedData.reviews || [])
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
-      const [profileRes, statsRes, reviewsRes] = await Promise.all([
+
+      // Use Promise.allSettled for better error handling
+      const results = await Promise.allSettled([
         api.get('/owners/profile'),
         api.get('/owners/statistics'),
-        api.get('/owners/reviews').catch(() => ({ data: { data: [] } }))
+        api.get('/owners/reviews')
       ])
 
-      setProfile(profileRes.data.data)
-      setStats(statsRes.data.data)
-      setRecentReviews(reviewsRes.data.data || [])
+      let fetchedProfile = null
+      let fetchedStats = null
+      let fetchedReviews = []
+
+      // Extract data safely
+      if (results[0].status === 'fulfilled') {
+        fetchedProfile = results[0].value.data.data
+        setProfile(fetchedProfile)
+      }
+
+      if (results[1].status === 'fulfilled') {
+        fetchedStats = results[1].value.data.data
+        setStats(fetchedStats)
+      }
+
+      if (results[2].status === 'fulfilled') {
+        fetchedReviews = results[2].value.data.data || []
+        setRecentReviews(fetchedReviews)
+      }
+
+      // Cache the data if we got profile
+      if (fetchedProfile) {
+        setOwnerData(fetchedProfile, fetchedStats, fetchedReviews)
+      }
+
+      // Show error only if profile failed (critical)
+      if (results[0].status === 'rejected') {
+        console.error('Failed to fetch owner profile')
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error)
       toast.error('Failed to load dashboard data')
@@ -213,7 +256,7 @@ export default function OwnerDashboard() {
             <h3 className="text-xl font-bold text-gray-900">Recent Reviews</h3>
             <span className="text-sm text-gray-500">{recentReviews.length} reviews</span>
           </div>
-          
+
           {recentReviews.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
               <span className="text-4xl block mb-3">💬</span>
@@ -242,7 +285,7 @@ export default function OwnerDashboard() {
                         {(review.user?.name || 'U').charAt(0).toUpperCase()}
                       </div>
                     )}
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-semibold text-gray-900">
@@ -250,8 +293,8 @@ export default function OwnerDashboard() {
                         </p>
                         <div className="flex items-center gap-1">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <span 
-                              key={star} 
+                            <span
+                              key={star}
                               className={`text-sm ${star <= review.rating ? 'text-yellow-400' : 'text-gray-200'}`}
                             >
                               ⭐

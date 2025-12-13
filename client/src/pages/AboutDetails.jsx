@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../services/api'
+import useDataCache from '../store/dataCache'
 
 export default function AboutDetails() {
     const { slug } = useParams()
@@ -10,15 +11,29 @@ export default function AboutDetails() {
     const [loading, setLoading] = useState(true)
     const [selectedImage, setSelectedImage] = useState(0)
 
+    // Use cache
+    const { getAboutDetail, setAboutDetail } = useDataCache()
+
     useEffect(() => {
         fetchItem()
     }, [slug])
 
     const fetchItem = async () => {
+        // Check cache first
+        const cachedItem = getAboutDetail(slug)
+        if (cachedItem) {
+            console.log('📦 Using cached about detail data')
+            setItem(cachedItem)
+            setLoading(false)
+            return
+        }
+
         try {
             setLoading(true)
             const response = await api.get(`/about/${slug}`)
-            setItem(response.data.data)
+            const data = response.data.data
+            setItem(data)
+            setAboutDetail(slug, data)
         } catch (error) {
             console.error('Failed to fetch about item:', error)
             navigate('/about')
@@ -75,8 +90,8 @@ export default function AboutDetails() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="grid lg:grid-cols-2 gap-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                     {/* Image Gallery */}
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
@@ -84,9 +99,9 @@ export default function AboutDetails() {
                         className="w-full"
                     >
                         {images.length > 0 ? (
-                            <div className="space-y-3 sm:space-y-4">
-                                {/* Main Image */}
-                                <div className="relative rounded-xl sm:rounded-2xl overflow-hidden shadow-lg aspect-[4/3] sm:aspect-video bg-gray-100">
+                            <div className="space-y-2 sm:space-y-4">
+                                {/* Main Image - More responsive sizing */}
+                                <div className="relative rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-lg aspect-[4/3] bg-gray-100">
                                     <img
                                         src={typeof images[selectedImage] === 'object' ? images[selectedImage].url : images[selectedImage]}
                                         alt={item.title}
@@ -118,8 +133,8 @@ export default function AboutDetails() {
                                                     key={index}
                                                     onClick={() => setSelectedImage(index)}
                                                     className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === index
-                                                            ? 'border-primary ring-2 ring-primary/30'
-                                                            : 'border-gray-200 hover:border-gray-300'
+                                                        ? 'border-primary ring-2 ring-primary/30'
+                                                        : 'border-gray-200 hover:border-gray-300'
                                                         }`}
                                                 >
                                                     <img

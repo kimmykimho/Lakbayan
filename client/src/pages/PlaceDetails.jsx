@@ -8,6 +8,7 @@ import ImageCarousel from '../components/ImageCarousel'
 import FavoriteButton from '../components/FavoriteButton'
 import ShareButton from '../components/ShareButton'
 import { useAuthStore } from '../store/authStore'
+import useDataCache from '../store/dataCache'
 
 export default function PlaceDetails() {
   const { id } = useParams()
@@ -41,6 +42,9 @@ export default function PlaceDetails() {
       email: ''
     }
   })
+
+  // Use cache
+  const { getPlaceDetail, setPlaceDetail } = useDataCache()
 
   useEffect(() => {
     fetchPlaceDetails()
@@ -77,13 +81,27 @@ export default function PlaceDetails() {
       return
     }
 
+    // Check cache first
+    const cachedPlace = getPlaceDetail(id)
+    if (cachedPlace) {
+      console.log('📦 Using cached place details')
+      setPlace(cachedPlace)
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const response = await api.get(`/places/${id}`)
+      let data = null
       if (response.data.success) {
-        setPlace(response.data.data)
+        data = response.data.data
       } else if (response.data.data) {
-        setPlace(response.data.data)
+        data = response.data.data
+      }
+      if (data) {
+        setPlace(data)
+        setPlaceDetail(id, data)
       }
     } catch (error) {
       console.error('Failed to fetch place details:', error)
