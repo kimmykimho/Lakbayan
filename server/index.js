@@ -11,7 +11,7 @@ const rateLimit = require('express-rate-limit');
 const { supabase, testConnection } = require('./config/supabase');
 
 const app = express();
-
+//snb
 // CORS configuration - allow multiple origins
 const allowedOrigins = [
   'http://localhost:5173',
