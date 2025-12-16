@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import ReCAPTCHA from 'react-google-recaptcha'
 import logo from '../assets/logo.png'
 
-const RECAPTCHA_SITE_KEY = '6Lf4VSYsAAAAAKtCyKa1ecfs7Z-D-c6mySQrVr2b'
+const RECAPTCHA_SITE_KEY = '6LdCDi0sAAAAAJEnfL4xBHsPdrf3LpRn-f7IOqVm'
 
 export default function Login() {
   const navigate = useNavigate()
