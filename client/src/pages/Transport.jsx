@@ -286,7 +286,7 @@ export default function Transport() {
 
     setLoading(true)
     try {
-      await api.post('/transport-requests', {
+      const response = await api.post('/transport-requests', {
         vehicleType: selectedVehicle.id,
         pickup: {
           address: 'Current Location',
@@ -308,8 +308,10 @@ export default function Transport() {
         notes: location.state?.destination?.notes || ''
       })
 
+      const requestId = response.data.data?.id || response.data.data?._id
       toast.success('Transport requested! A driver will contact you soon.')
-      navigate('/my-bookings')
+      // Navigate to tracking page so user can track their request
+      navigate(requestId ? `/track-transport/${requestId}` : '/my-bookings')
     } catch (error) {
       console.error('Failed to request transport:', error)
       toast.error(error.response?.data?.message || 'Failed to request transport')

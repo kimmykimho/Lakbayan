@@ -38,7 +38,7 @@ export default function AdminOwners() {
 
   const handleApprove = async (id) => {
     try {
-      await api.put(`/owners/applications/${id}/approve`)
+      await api.put(`/owners/${id}/approve`)
       toast.success('Application approved! Owner role granted.')
       fetchApplications()
       setShowModal(false)
@@ -55,7 +55,7 @@ export default function AdminOwners() {
     }
 
     try {
-      await api.put(`/owners/applications/${id}/reject`, {
+      await api.put(`/owners/${id}/reject`, {
         reason: rejectionReason
       })
       toast.success('Application rejected')

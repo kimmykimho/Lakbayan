@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { queryAll, queryOne, query, queryCached, invalidateCache } = require('../config/neon');
 const { protect, authorize } = require('../middleware/auth');
 
 // Helper to generate slug from name
@@ -14,45 +14,57 @@ const generateSlug = (name) => {
 };
 
 // @route   GET /api/places
-// @desc    Get all places with filters (ultra-optimized for free tier)
+// @desc    Get all places with filters
 // @access  Public
 router.get('/', async (req, res) => {
   try {
     const { category, status, featured, sort, limit, search, page = 1 } = req.query;
 
-    // Very small default limit to prevent timeouts on free tier
     const queryLimit = Math.min(parseInt(limit) || 12, 30);
     const offset = (parseInt(page) - 1) * queryLimit;
 
-    // Minimal fields for fastest query - no count to reduce overhead
-    let query = supabase
-      .from('places')
-      .select('id, name, slug, category, location, images, rating, visitors, featured, status');
+    // Use cache for default queries (no search, no special filters)
+    const cacheKey = `places:${category || 'all'}:${featured || 'false'}:${page}`;
+    const useCache = !search && !status;
 
-    // Apply status filter
-    if (status) {
-      query = query.eq('status', status);
+    let places;
+    if (useCache) {
+      // Only get first image for list view (full images = 12+ MB each!)
+      places = await queryCached(cacheKey,
+        `SELECT id, name, slug, category, location, 
+                images->>0 as image, rating, visitors, featured, status 
+         FROM places WHERE status = 'active' ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+        [queryLimit, offset], 300000); // 5 minute cache
     } else {
-      query = query.eq('status', 'active');
-    }
+      let sql = `SELECT id, name, slug, category, location, images->>0 as image, rating, visitors, featured, status 
+                 FROM places WHERE 1=1`;
+      const params = [];
+      let paramIndex = 1;
 
-    if (featured === 'true') query = query.eq('featured', true);
-    if (category && category !== 'all') query = query.eq('category', category);
+      if (status) {
+        sql += ` AND status = $${paramIndex++}`;
+        params.push(status);
+      } else {
+        sql += ` AND status = $${paramIndex++}`;
+        params.push('active');
+      }
 
-    // Search - only on name for speed
-    if (search) {
-      query = query.ilike('name', `%${search}%`);
-    }
+      if (featured === 'true') {
+        sql += ` AND featured = true`;
+      }
+      if (category && category !== 'all') {
+        sql += ` AND category = $${paramIndex++}`;
+        params.push(category);
+      }
+      if (search) {
+        sql += ` AND name ILIKE $${paramIndex++}`;
+        params.push(`%${search}%`);
+      }
 
-    // Always order by created_at (indexed) and apply pagination
-    query = query
-      .order('created_at', { ascending: false })
-      .range(offset, offset + queryLimit - 1);
+      sql += ` ORDER BY created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+      params.push(queryLimit, offset);
 
-    const { data: places, error } = await query;
-
-    if (error) {
-      throw new Error(error.message);
+      places = await queryAll(sql, params);
     }
 
     // Sort by JSONB fields in JavaScript if requested
@@ -84,6 +96,36 @@ router.get('/', async (req, res) => {
 
 
 
+// @route   GET /api/places/admin/all
+// @desc    Get all places with details for admin (cached, optimized)
+// @access  Private/Admin
+router.get('/admin/all', protect, authorize('admin'), async (req, res) => {
+  try {
+    // Use same optimization as public route: cache + first image only
+    const places = await queryCached('admin:places:all',
+      `SELECT id, name, slug, category, location, 
+              images->>0 as image, rating, visitors, featured, status,
+              created_at, updated_at
+       FROM places ORDER BY created_at DESC`,
+      [], 60000); // 1 minute cache for admin
+
+    // Format images as array for frontend compatibility
+    const formatted = places.map(p => ({
+      ...p,
+      images: p.image ? [p.image] : []
+    }));
+
+    res.json({
+      success: true,
+      count: formatted.length,
+      data: formatted
+    });
+  } catch (error) {
+    console.error('Error fetching admin places:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   GET /api/places/:id
 // @desc    Get single place by ID
 // @access  Public
@@ -100,22 +142,19 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    const { data: place, error } = await supabase
-      .from('places')
-      .select('*, users!created_by(id, name, email)')
-      .eq('id', req.params.id)
-      .single();
+    const place = await queryOne(`
+      SELECT p.*, u.email as owner_email 
+      FROM places p 
+      LEFT JOIN users u ON p.owner_id = u.id 
+      WHERE p.id = $1
+    `, [req.params.id]);
 
-    if (error || !place) {
+    if (!place) {
       return res.status(404).json({
         success: false,
         message: 'Place not found'
       });
     }
-
-    // Rename users to createdBy for frontend compatibility
-    place.createdBy = place.users;
-    delete place.users;
 
     res.json({
       success: true,
@@ -143,22 +182,18 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 
     // If ownerEmail is provided, find and link the user
     if (req.body.ownerEmail) {
-      const { data: owner } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', req.body.ownerEmail.toLowerCase())
-        .single();
+      const owner = await queryOne('SELECT id FROM users WHERE LOWER(email) = $1', [req.body.ownerEmail.toLowerCase()]);
 
       if (owner) {
-        placeData.created_by = owner.id;
+        placeData.owner_id = owner.id;
       } else {
         console.log(`⚠️ Owner email ${req.body.ownerEmail} not found, using admin as creator`);
-        placeData.created_by = req.user.id;
+        placeData.owner_id = req.user.id;
       }
 
       delete placeData.ownerEmail;
     } else {
-      placeData.created_by = req.user.id;
+      placeData.owner_id = req.user.id;
     }
 
     // Convert camelCase to snake_case for DB
@@ -221,31 +256,19 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
     // Remove fields that don't exist in DB schema
     delete placeData.ownerEmail;
 
-    const { data: place, error } = await supabaseAdmin
-      .from('places')
-      .insert(placeData)
-      .select()
-      .single();
+    // Build insert query for Neon
+    const columns = Object.keys(placeData).filter(k => placeData[k] !== undefined);
+    const values = columns.map(k => {
+      const v = placeData[k];
+      return typeof v === 'object' ? JSON.stringify(v) : v;
+    });
+    const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    // Update user's owned_places if owner was found
-    if (req.body.ownerEmail) {
-      const { data: owner } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', req.body.ownerEmail.toLowerCase())
-        .single();
-
-      if (owner) {
-        await supabaseAdmin
-          .from('user_owned_places')
-          .insert({ user_id: owner.id, place_id: place.id });
-        console.log(`✅ Added place to user's owned places`);
-      }
-    }
+    const insertResult = await query(
+      `INSERT INTO places (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+      values
+    );
+    const place = insertResult.rows[0];
 
     res.status(201).json({
       success: true,
@@ -271,47 +294,21 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
     // If ownerEmail is provided, update the owner relationship
     if (req.body.ownerEmail !== undefined) {
       // Get existing place
-      const { data: existingPlace } = await supabaseAdmin
-        .from('places')
-        .select('created_by')
-        .eq('id', req.params.id)
-        .single();
+      const existingPlace = await queryOne('SELECT owner_id FROM places WHERE id = $1', [req.params.id]);
 
       if (req.body.ownerEmail) {
         // Find new owner
-        const { data: newOwner } = await supabaseAdmin
-          .from('users')
-          .select('id')
-          .eq('email', req.body.ownerEmail.toLowerCase())
-          .single();
+        const newOwner = await queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [req.body.ownerEmail]);
 
         if (newOwner) {
-          placeData.created_by = newOwner.id;
+          placeData.owner_id = newOwner.id;
 
-          // Remove from old owner's owned places
-          if (existingPlace?.created_by) {
-            await supabaseAdmin
-              .from('user_owned_places')
-              .delete()
-              .eq('user_id', existingPlace.created_by)
-              .eq('place_id', req.params.id);
-          }
-
-          // Add to new owner's owned places
-          await supabaseAdmin
-            .from('user_owned_places')
-            .upsert({ user_id: newOwner.id, place_id: req.params.id });
+          // Remove from old owner's owned places (user_owned_places table may not exist)
+          // Skip this for now as it's optional
         }
       } else {
         // Remove owner relationship
-        if (existingPlace?.created_by) {
-          await supabaseAdmin
-            .from('user_owned_places')
-            .delete()
-            .eq('user_id', existingPlace.created_by)
-            .eq('place_id', req.params.id);
-        }
-        placeData.created_by = null;
+        placeData.owner_id = null;
       }
 
       delete placeData.ownerEmail;
@@ -374,17 +371,60 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
       };
       delete placeData.pricePerNight;
     }
+    // Valid database columns - columns that exist in places table after migrations
+    const validColumns = [
+      'name', 'slug', 'description', 'category', 'images', 'location',
+      'contact', 'hours', 'pricing', 'menu', 'accommodation', 'shop',
+      'entertainment', 'services', 'amenities', 'activities', 'highlights',
+      'rating', 'visitors', 'best_time_to_visit', 'accessibility',
+      'status', 'featured', 'virtual_tour', 'owner_id', 'created_by', 'updated_at'
+    ];
 
-    const { data: place, error } = await supabaseAdmin
-      .from('places')
-      .update(placeData)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    // Build update query for Neon
+    const updateKeys = Object.keys(placeData).filter(k =>
+      placeData[k] !== undefined && k !== 'id' && validColumns.includes(k)
+    );
 
-    if (error) {
-      throw new Error(error.message);
+    console.log('📝 Update place request:', {
+      id: req.params.id,
+      receivedFields: Object.keys(req.body),
+      filteredFields: updateKeys,
+      placeDataKeys: Object.keys(placeData)
+    });
+
+    if (updateKeys.length === 0) {
+      console.log('❌ No valid fields to update. Received:', Object.keys(placeData));
+      return res.status(400).json({ success: false, message: 'No valid fields to update', received: Object.keys(req.body) });
     }
+
+    const setClause = updateKeys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+
+    // TEXT[] columns need PostgreSQL array format {a,b,c}, JSONB columns need JSON.stringify
+    const textArrayColumns = ['amenities', 'activities', 'highlights', 'services'];
+    const values = updateKeys.map(k => {
+      const v = placeData[k];
+      if (textArrayColumns.includes(k)) {
+        // Convert JavaScript array to PostgreSQL array literal format: {item1,item2}
+        if (Array.isArray(v) && v.length > 0) {
+          return '{' + v.map(item => `"${String(item).replace(/"/g, '\\"')}"`).join(',') + '}';
+        }
+        return '{}'; // Empty array
+      }
+
+      // Handle null explicitly to avoid JSON.stringify(null) -> "null" string
+      if (v === null) return null;
+
+      // For JSONB and other objects, stringify
+      return typeof v === 'object' ? JSON.stringify(v) : v;
+    });
+    values.push(req.params.id);
+
+    const updateResult = await query(
+      `UPDATE places SET ${setClause} WHERE id = $${values.length} RETURNING *`,
+      values
+    );
+
+    const place = updateResult.rows[0];
 
     if (!place) {
       return res.status(404).json({
@@ -392,6 +432,11 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
         message: 'Place not found'
       });
     }
+
+    // Invalidate all places caches so fresh data is loaded
+    invalidateCache('admin:places:all');
+    invalidateCache('places:all:false:1');
+    invalidateCache('places:all:false:2');
 
     res.json({
       success: true,
@@ -424,11 +469,7 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
     }
 
     // Get place first
-    const { data: place } = await supabaseAdmin
-      .from('places')
-      .select('id, name, created_by')
-      .eq('id', req.params.id)
-      .single();
+    const place = await queryOne('SELECT id, name, owner_id FROM places WHERE id = $1', [req.params.id]);
 
     if (!place) {
       console.log('❌ Place not found:', req.params.id);
@@ -438,57 +479,28 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
       });
     }
 
-    // Remove from owner's owned places
-    if (place.created_by) {
-      await supabaseAdmin
-        .from('user_owned_places')
-        .delete()
-        .eq('place_id', req.params.id);
-    }
-
     // Remove from user favorites
-    await supabaseAdmin
-      .from('user_favorites')
-      .delete()
-      .eq('place_id', req.params.id);
+    await query('DELETE FROM user_favorites WHERE place_id = $1', [req.params.id]);
 
     // Delete reviews for this place
-    await supabaseAdmin
-      .from('reviews')
-      .delete()
-      .eq('place_id', req.params.id);
+    await query('DELETE FROM reviews WHERE place_id = $1', [req.params.id]);
 
     // Get all bookings for this place to delete related transport requests
-    const { data: placeBookings } = await supabaseAdmin
-      .from('bookings')
-      .select('id')
-      .eq('place_id', req.params.id);
+    const placeBookings = await queryAll('SELECT id FROM bookings WHERE place_id = $1', [req.params.id]);
 
     if (placeBookings && placeBookings.length > 0) {
       const bookingIds = placeBookings.map(b => b.id);
-
       // Delete transport requests linked to these bookings
-      await supabaseAdmin
-        .from('transport_requests')
-        .delete()
-        .in('booking_id', bookingIds);
+      for (const bookingId of bookingIds) {
+        await query('DELETE FROM transport_requests WHERE booking_id = $1', [bookingId]);
+      }
     }
 
     // Delete bookings for this place
-    await supabaseAdmin
-      .from('bookings')
-      .delete()
-      .eq('place_id', req.params.id);
+    await query('DELETE FROM bookings WHERE place_id = $1', [req.params.id]);
 
     // Delete the place
-    const { error } = await supabaseAdmin
-      .from('places')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) {
-      throw new Error(error.message);
-    }
+    await query('DELETE FROM places WHERE id = $1', [req.params.id]);
 
     console.log('✅ Place deleted successfully:', place.name);
 
@@ -513,13 +525,9 @@ router.post('/:id/reviews', protect, async (req, res) => {
     const { rating, comment, title } = req.body;
 
     // Check if place exists
-    const { data: place, error: placeError } = await supabase
-      .from('places')
-      .select('id, rating')
-      .eq('id', req.params.id)
-      .single();
+    const place = await queryOne('SELECT id, rating FROM places WHERE id = $1', [req.params.id]);
 
-    if (placeError || !place) {
+    if (!place) {
       return res.status(404).json({
         success: false,
         message: 'Place not found'
@@ -527,36 +535,21 @@ router.post('/:id/reviews', protect, async (req, res) => {
     }
 
     // Create review
-    const { data: review, error } = await supabase
-      .from('reviews')
-      .insert({
-        place_id: req.params.id,
-        user_id: req.user.id,
-        rating,
-        comment,
-        title
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
+    const reviewResult = await query(
+      `INSERT INTO reviews (place_id, user_id, rating, comment) 
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.params.id, req.user.id, rating, comment]
+    );
+    const review = reviewResult.rows[0];
 
     // Update place rating
-    const { data: reviews } = await supabase
-      .from('reviews')
-      .select('rating')
-      .eq('place_id', req.params.id);
-
+    const reviews = await queryAll('SELECT rating FROM reviews WHERE place_id = $1', [req.params.id]);
     const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
 
-    await supabase
-      .from('places')
-      .update({
-        rating: { average: Math.round(avgRating * 10) / 10, count: reviews.length }
-      })
-      .eq('id', req.params.id);
+    await query(
+      `UPDATE places SET rating = $1 WHERE id = $2`,
+      [JSON.stringify({ average: Math.round(avgRating * 10) / 10, count: reviews.length }), req.params.id]
+    );
 
     res.status(201).json({
       success: true,

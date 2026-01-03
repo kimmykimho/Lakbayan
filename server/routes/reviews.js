@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { queryAll, queryOne, query } = require('../config/neon');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET /api/reviews
@@ -8,31 +8,23 @@ const { protect, authorize } = require('../middleware/auth');
 // @access  Public
 router.get('/', async (req, res) => {
   try {
-    const { data: reviews, error } = await supabase
-      .from('reviews')
-      .select(`*, users!user_id(id, name, avatar), places!place_id(id, name)`)
-      .order('created_at', { ascending: false });
-
-    if (error) throw new Error(error.message);
+    const reviews = await queryAll(
+      `SELECT r.*, u.id as user_db_id, u.name as user_name, u.avatar as user_avatar, p.id as place_db_id, p.name as place_name
+       FROM reviews r
+       LEFT JOIN users u ON r.user_id = u.id
+       LEFT JOIN places p ON r.place_id = p.id
+       ORDER BY r.created_at DESC`
+    );
 
     const formatted = reviews.map(r => ({
       ...r,
-      user: r.users,
-      place: r.places,
-      users: undefined,
-      places: undefined
+      user: { id: r.user_db_id, name: r.user_name, avatar: r.user_avatar },
+      place: { id: r.place_db_id, name: r.place_name }
     }));
 
-    res.json({
-      success: true,
-      count: formatted.length,
-      data: formatted
-    });
+    res.json({ success: true, count: formatted.length, data: formatted });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -43,124 +35,39 @@ router.post('/', protect, async (req, res) => {
   try {
     const { place, rating, title, comment, booking, images } = req.body;
 
-    console.log('📝 Creating review:', { place, rating, user_id: req.user.id });
-
-    // Validate required fields
-    if (!place) {
-      return res.status(400).json({
-        success: false,
-        message: 'Place ID is required'
-      });
+    if (!place || !rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Place ID and rating (1-5) required' });
     }
 
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rating must be between 1 and 5'
-      });
-    }
-
-    // Check if user already reviewed this place (use admin to bypass RLS)
-    const { data: existingReview } = await supabaseAdmin
-      .from('reviews')
-      .select('id')
-      .eq('user_id', req.user.id)
-      .eq('place_id', place)
-      .single();
+    const existingReview = await queryOne(
+      'SELECT id FROM reviews WHERE user_id = $1 AND place_id = $2',
+      [req.user.id, place]
+    );
 
     if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already reviewed this place'
-      });
+      return res.status(400).json({ success: false, message: 'You have already reviewed this place' });
     }
 
-    // Insert the review using admin client to bypass RLS
-    const { data: review, error: insertError } = await supabaseAdmin
-      .from('reviews')
-      .insert({
-        user_id: req.user.id,
-        place_id: place,
-        booking_id: booking || null,
-        rating,
-        title: title || null,
-        comment,
-        images: images || []
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error('❌ Review insert error:', insertError);
-      throw new Error(insertError.message);
-    }
-
-    console.log('✅ Review created:', review.id);
-
-    // Update user stats (don't fail if this errors)
-    try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('stats')
-        .eq('id', req.user.id)
-        .single();
-
-      const currentStats = userData?.stats || { reviewsCount: 0 };
-      await supabase
-        .from('users')
-        .update({
-          stats: {
-            ...currentStats,
-            reviewsCount: (currentStats.reviewsCount || 0) + 1
-          }
-        })
-        .eq('id', req.user.id);
-    } catch (statsError) {
-      console.error('⚠️ Failed to update user stats:', statsError);
-    }
+    const result = await query(
+      `INSERT INTO reviews (user_id, place_id, booking_id, rating, comment, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING *`,
+      [req.user.id, place, booking || null, rating, comment]
+    );
 
     // Update place rating
-    try {
-      const { data: allReviews } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('place_id', place);
-
-      if (allReviews && allReviews.length > 0) {
-        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
-        await supabase
-          .from('places')
-          .update({
-            rating: { average: Math.round(avgRating * 10) / 10, count: allReviews.length }
-          })
-          .eq('id', place);
-        console.log('✅ Place rating updated:', avgRating.toFixed(1));
-      }
-    } catch (ratingError) {
-      console.error('⚠️ Failed to update place rating:', ratingError);
+    const allReviews = await queryAll('SELECT rating FROM reviews WHERE place_id = $1', [place]);
+    if (allReviews.length > 0) {
+      const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+      await query(
+        'UPDATE places SET rating = $1 WHERE id = $2',
+        [JSON.stringify({ average: Math.round(avgRating * 10) / 10, count: allReviews.length }), place]
+      );
     }
 
-    // Fetch user info for response
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, name, avatar')
-      .eq('id', req.user.id)
-      .single();
-
-    res.status(201).json({
-      success: true,
-      message: 'Review submitted successfully',
-      data: {
-        ...review,
-        user: user || { id: req.user.id, name: 'Anonymous' }
-      }
-    });
+    res.status(201).json({ success: true, message: 'Review created', data: result.rows[0] });
   } catch (error) {
-    console.error('❌ Create review error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to create review'
-    });
+    console.error('Review creation error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -169,34 +76,23 @@ router.post('/', protect, async (req, res) => {
 // @access  Private
 router.get('/user', protect, async (req, res) => {
   try {
-    const { data: reviews, error } = await supabase
-      .from('reviews')
-      .select(`
-        *,
-        places!place_id(id, name, images)
-      `)
-      .eq('user_id', req.user.id)
-      .order('created_at', { ascending: false });
+    const reviews = await queryAll(
+      `SELECT r.*, p.id as place_db_id, p.name as place_name, p.images as place_images
+       FROM reviews r
+       LEFT JOIN places p ON r.place_id = p.id
+       WHERE r.user_id = $1
+       ORDER BY r.created_at DESC`,
+      [req.user.id]
+    );
 
-    if (error) throw new Error(error.message);
-
-    // Format response
-    const formattedReviews = reviews.map(r => ({
+    const formatted = reviews.map(r => ({
       ...r,
-      place: r.places,
-      places: undefined
+      place: { id: r.place_db_id, name: r.place_name, images: r.place_images }
     }));
 
-    res.json({
-      success: true,
-      count: formattedReviews.length,
-      data: formattedReviews
-    });
+    res.json({ success: true, count: formatted.length, data: formatted });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -205,35 +101,23 @@ router.get('/user', protect, async (req, res) => {
 // @access  Public
 router.get('/place/:placeId', async (req, res) => {
   try {
-    // Use supabaseAdmin to bypass RLS
-    const { data: reviews, error } = await supabaseAdmin
-      .from('reviews')
-      .select(`
-        *,
-        users!user_id(id, name, avatar)
-      `)
-      .eq('place_id', req.params.placeId)
-      .order('created_at', { ascending: false });
+    const reviews = await queryAll(
+      `SELECT r.*, u.id as user_db_id, u.name as user_name, u.avatar as user_avatar
+       FROM reviews r
+       LEFT JOIN users u ON r.user_id = u.id
+       WHERE r.place_id = $1
+       ORDER BY r.created_at DESC`,
+      [req.params.placeId]
+    );
 
-    if (error) throw new Error(error.message);
-
-    // Format response
-    const formattedReviews = reviews.map(r => ({
+    const formatted = reviews.map(r => ({
       ...r,
-      user: r.users,
-      users: undefined
+      user: { id: r.user_db_id, name: r.user_name, avatar: r.user_avatar }
     }));
 
-    res.json({
-      success: true,
-      count: formattedReviews.length,
-      data: formattedReviews
-    });
+    res.json({ success: true, count: formatted.length, data: formatted });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -242,49 +126,38 @@ router.get('/place/:placeId', async (req, res) => {
 // @access  Private
 router.put('/:id', protect, async (req, res) => {
   try {
-    // Check ownership
-    const { data: review } = await supabase
-      .from('reviews')
-      .select('user_id')
-      .eq('id', req.params.id)
-      .single();
+    const review = await queryOne('SELECT user_id FROM reviews WHERE id = $1', [req.params.id]);
 
     if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review not found'
-      });
+      return res.status(404).json({ success: false, message: 'Review not found' });
     }
 
     if (review.user_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this review'
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
     const updateData = { ...req.body };
-    updateData.updated_at = new Date().toISOString();
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
-    const { data: updated, error } = await supabase
-      .from('reviews')
-      .update(updateData)
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) {
+        fields.push(`${key} = $${paramIndex++}`);
+        values.push(value);
+      }
+    }
+    fields.push(`updated_at = NOW()`);
+    values.push(req.params.id);
 
-    if (error) throw new Error(error.message);
+    const result = await query(
+      `UPDATE reviews SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
 
-    res.json({
-      success: true,
-      message: 'Review updated successfully',
-      data: updated
-    });
+    res.json({ success: true, message: 'Review updated', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -293,64 +166,33 @@ router.put('/:id', protect, async (req, res) => {
 // @access  Private
 router.delete('/:id', protect, async (req, res) => {
   try {
-    // Check ownership
-    const { data: review } = await supabase
-      .from('reviews')
-      .select('user_id, place_id')
-      .eq('id', req.params.id)
-      .single();
+    const review = await queryOne('SELECT user_id, place_id FROM reviews WHERE id = $1', [req.params.id]);
 
     if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review not found'
-      });
+      return res.status(404).json({ success: false, message: 'Review not found' });
     }
 
     if (review.user_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this review'
-      });
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const { error } = await supabase
-      .from('reviews')
-      .delete()
-      .eq('id', req.params.id);
-
-    if (error) throw new Error(error.message);
+    await query('DELETE FROM reviews WHERE id = $1', [req.params.id]);
 
     // Update place rating
-    const { data: remainingReviews } = await supabase
-      .from('reviews')
-      .select('rating')
-      .eq('place_id', review.place_id);
-
-    if (remainingReviews && remainingReviews.length > 0) {
+    const remainingReviews = await queryAll('SELECT rating FROM reviews WHERE place_id = $1', [review.place_id]);
+    if (remainingReviews.length > 0) {
       const avgRating = remainingReviews.reduce((sum, r) => sum + r.rating, 0) / remainingReviews.length;
-      await supabase
-        .from('places')
-        .update({
-          rating: { average: Math.round(avgRating * 10) / 10, count: remainingReviews.length }
-        })
-        .eq('id', review.place_id);
+      await query(
+        'UPDATE places SET rating = $1 WHERE id = $2',
+        [JSON.stringify({ average: Math.round(avgRating * 10) / 10, count: remainingReviews.length }), review.place_id]
+      );
     } else {
-      await supabase
-        .from('places')
-        .update({ rating: { average: 0, count: 0 } })
-        .eq('id', review.place_id);
+      await query('UPDATE places SET rating = $1 WHERE id = $2', [JSON.stringify({ average: 0, count: 0 }), review.place_id]);
     }
 
-    res.json({
-      success: true,
-      message: 'Review deleted successfully'
-    });
+    res.json({ success: true, message: 'Review deleted' });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

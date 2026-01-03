@@ -1,7 +1,27 @@
 const jwt = require('jsonwebtoken');
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { supabase } = require('../config/supabase');
+const { queryOne, getCached, setCache } = require('../config/neon');
 
-// Protect routes - verify JWT token (supports both Supabase OAuth and custom JWTs)
+// Cache for verified tokens (5 minute TTL)
+const tokenCache = new Map();
+const TOKEN_CACHE_TTL = 5 * 60 * 1000;
+
+// Get cached token verification
+const getCachedToken = (token) => {
+  const cached = tokenCache.get(token);
+  if (cached && Date.now() < cached.expires) {
+    return cached.data;
+  }
+  tokenCache.delete(token);
+  return null;
+};
+
+// Set cached token verification
+const setCachedToken = (token, data) => {
+  tokenCache.set(token, { data, expires: Date.now() + TOKEN_CACHE_TTL });
+};
+
+// Protect routes - verify JWT token with caching
 exports.protect = async (req, res, next) => {
   try {
     let token;
@@ -13,52 +33,63 @@ exports.protect = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Not authorized to access this route - no token provided'
+        message: 'Not authorized - no token'
       });
     }
+
+    // Check token cache first
+    const cachedAuth = getCachedToken(token);
+    if (cachedAuth) {
+      req.user = cachedAuth;
+      return next();
+    }
+
+    console.log('🔒 Auth Check - Token:', token ? 'Present' : 'Missing');
 
     let userId = null;
     let userEmail = null;
 
-    // First, try to verify as Supabase OAuth token
+    // Try custom JWT first (faster - no network call)
     try {
-      const { data: { user: supabaseUser }, error: supabaseError } = await supabase.auth.getUser(token);
-
-      if (supabaseUser && !supabaseError) {
-        // Valid Supabase OAuth token
-        userId = supabaseUser.id;
-        userEmail = supabaseUser.email;
-        console.log('✅ Supabase OAuth token verified for:', userEmail);
-      }
-    } catch (supabaseErr) {
-      // Not a Supabase token, try JWT_SECRET
-      console.log('Token is not a Supabase OAuth token, trying JWT_SECRET...');
-    }
-
-    // If not a Supabase token, try custom JWT
-    if (!userId) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.id;
+    } catch (jwtErr) {
+      // Not a custom JWT, try Supabase OAuth
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decoded.id;
-        console.log('✅ Custom JWT verified for user ID:', userId);
-      } catch (jwtErr) {
-        console.error('❌ Both Supabase and JWT verification failed');
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid or expired token'
-        });
+        const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
+        if (supabaseUser && !error) {
+          userEmail = supabaseUser.email;
+          console.log('✅ OAuth verified:', userEmail);
+        }
+      } catch (e) {
+        // Token invalid
       }
     }
 
-    // Get user from database using admin client to bypass RLS
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .or(`id.eq.${userId},email.eq.${userEmail}`)
-      .single();
+    if (!userId && !userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
 
-    if (error || !user) {
-      console.error('User lookup error:', error?.message || 'User not found');
+    // Get user from Neon - check user cache first
+    const cacheKey = userEmail ? `user:email:${userEmail.toLowerCase()}` : `user:id:${userId}`;
+    let user = getCached(cacheKey);
+
+    if (!user) {
+      if (userEmail) {
+        user = await queryOne('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [userEmail]);
+      } else {
+        user = await queryOne('SELECT * FROM users WHERE id = $1', [userId]);
+      }
+
+      if (user) {
+        setCache(cacheKey, user, 60000); // 1 min cache
+      }
+    }
+
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: 'User not found'
@@ -68,19 +99,19 @@ exports.protect = async (req, res, next) => {
     if (user.is_active === false) {
       return res.status(401).json({
         success: false,
-        message: 'User account is deactivated'
+        message: 'Account deactivated'
       });
     }
 
-    // Remove password from user object
     delete user.password;
-
-    // Attach user to request
     req.user = user;
+
+    // Cache the full auth result
+    setCachedToken(token, user);
 
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error('Auth error:', error.message);
     return res.status(401).json({
       success: false,
       message: 'Authentication failed'
@@ -88,20 +119,20 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Grant access to specific roles
+// Authorize roles
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'User not authenticated'
+        message: 'Not authenticated'
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `User role '${req.user.role}' is not authorized to access this route. Required: ${roles.join(', ')}`
+        message: `Role '${req.user.role}' not authorized`
       });
     }
     next();

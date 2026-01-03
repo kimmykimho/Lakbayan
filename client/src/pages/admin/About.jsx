@@ -16,6 +16,7 @@ export default function AdminAbout() {
     const [uploading, setUploading] = useState(false)
     const [showLinkModal, setShowLinkModal] = useState(false)
     const [linkForm, setLinkForm] = useState({ label: '', url: '' })
+    const [loadingEditId, setLoadingEditId] = useState(null) // Track which item is loading
     const fileInputRef = useRef(null)
 
     const initialFormData = {
@@ -48,7 +49,7 @@ export default function AdminAbout() {
     const fetchItems = async () => {
         try {
             setLoading(true)
-            const response = await api.get('/about')
+            const response = await api.get('/about/admin/all')
             setItems(response.data.data || [])
         } catch (error) {
             console.error('Failed to fetch about items:', error)
@@ -66,22 +67,40 @@ export default function AdminAbout() {
         setShowModal(true)
     }
 
-    const openEditModal = (item) => {
-        setEditingItem(item)
-        setFormData({
-            title: item.title || '',
-            description: item.description || '',
-            category: item.category || 'heritage',
-            images: item.images || [],
-            video_urls: item.video_urls || [],
-            external_links: item.external_links || [],
-            featured: item.featured || false,
-            status: item.status || 'active',
-            event_date: item.event_date || { start: '', end: '' }
-        })
-        setImageUrl('')
-        setVideoUrl('')
-        setShowModal(true)
+    const openEditModal = async (item) => {
+        setLoadingEditId(item.id) // Show loading on this item's button
+        try {
+            // Fetch FULL item data (including all images) before editing
+            const response = await api.get(`/about/${item.id}`)
+            const fullItem = response.data.data
+
+            // Parse images if needed (might be string from JSONB)
+            let images = fullItem.images || []
+            if (typeof images === 'string') {
+                try { images = JSON.parse(images) } catch { images = [] }
+            }
+
+            setEditingItem(fullItem)
+            setFormData({
+                title: fullItem.title || '',
+                description: fullItem.content || fullItem.short_description || '',
+                category: fullItem.category || 'heritage',
+                images: images,
+                video_urls: fullItem.video_urls || [],
+                external_links: fullItem.external_links || [],
+                featured: fullItem.featured || false,
+                status: fullItem.status || 'active',
+                event_date: fullItem.event_date || { start: '', end: '' }
+            })
+            setImageUrl('')
+            setVideoUrl('')
+            setShowModal(true)
+        } catch (error) {
+            console.error('Failed to fetch item for editing:', error)
+            toast.error('Failed to load item data')
+        } finally {
+            setLoadingEditId(null) // Clear loading state
+        }
     }
 
     const handleSubmit = async (e) => {
@@ -366,12 +385,25 @@ export default function AdminAbout() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => openEditModal(item)}
-                                        className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                                        disabled={loadingEditId === item.id}
+                                        className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
                                     >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                        </svg>
-                                        Edit
+                                        {loadingEditId === item.id ? (
+                                            <>
+                                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Loading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                                Edit
+                                            </>
+                                        )}
                                     </button>
                                     <button
                                         onClick={() => {

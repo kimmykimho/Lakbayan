@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/supabase');
+const { queryAll, queryOne, query } = require('../config/neon');
 const { protect } = require('../middleware/auth');
 
 // @route   GET /api/favorites
@@ -8,31 +8,21 @@ const { protect } = require('../middleware/auth');
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const { data: favorites, error } = await supabase
-      .from('user_favorites')
-      .select(`
-        place_id,
-        places!place_id(
-          id, name, description, category, images, location, 
-          rating, visitors, pricing, menu, shop, services, entertainment
-        )
-      `)
-      .eq('user_id', req.user.id);
-
-    if (error) throw new Error(error.message);
-
-    const places = favorites?.map(f => f.places).filter(Boolean) || [];
+    const favorites = await queryAll(
+      `SELECT p.id, p.name, p.description, p.category, p.images, p.location, p.rating 
+       FROM user_favorites uf 
+       JOIN places p ON uf.place_id = p.id 
+       WHERE uf.user_id = $1`,
+      [req.user.id]
+    );
 
     res.json({
       success: true,
-      count: places.length,
-      data: places
+      count: favorites.length,
+      data: favorites
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -43,58 +33,37 @@ router.post('/:placeId', protect, async (req, res) => {
   try {
     const { placeId } = req.params;
 
-    // Check if place exists
-    const { data: place, error: placeError } = await supabase
-      .from('places')
-      .select('id')
-      .eq('id', placeId)
-      .single();
-
-    if (placeError || !place) {
-      return res.status(404).json({
-        success: false,
-        message: 'Place not found'
-      });
+    const place = await queryOne('SELECT id FROM places WHERE id = $1', [placeId]);
+    if (!place) {
+      return res.status(404).json({ success: false, message: 'Place not found' });
     }
 
-    // Check if already in favorites
-    const { data: existing } = await supabase
-      .from('user_favorites')
-      .select('user_id')
-      .eq('user_id', req.user.id)
-      .eq('place_id', placeId)
-      .single();
+    const existing = await queryOne(
+      'SELECT user_id FROM user_favorites WHERE user_id = $1 AND place_id = $2',
+      [req.user.id, placeId]
+    );
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Place already in favorites'
-      });
+      return res.status(400).json({ success: false, message: 'Place already in favorites' });
     }
 
-    // Add to favorites
-    const { error } = await supabase
-      .from('user_favorites')
-      .insert({ user_id: req.user.id, place_id: placeId });
+    await query(
+      'INSERT INTO user_favorites (user_id, place_id) VALUES ($1, $2)',
+      [req.user.id, placeId]
+    );
 
-    if (error) throw new Error(error.message);
-
-    // Get updated favorites list
-    const { data: favorites } = await supabase
-      .from('user_favorites')
-      .select('place_id')
-      .eq('user_id', req.user.id);
+    const favorites = await queryAll(
+      'SELECT place_id FROM user_favorites WHERE user_id = $1',
+      [req.user.id]
+    );
 
     res.json({
       success: true,
       message: 'Added to favorites',
-      data: favorites?.map(f => f.place_id) || []
+      data: favorites.map(f => f.place_id)
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -103,32 +72,23 @@ router.post('/:placeId', protect, async (req, res) => {
 // @access  Private
 router.delete('/:placeId', protect, async (req, res) => {
   try {
-    const { placeId } = req.params;
+    await query(
+      'DELETE FROM user_favorites WHERE user_id = $1 AND place_id = $2',
+      [req.user.id, req.params.placeId]
+    );
 
-    const { error } = await supabase
-      .from('user_favorites')
-      .delete()
-      .eq('user_id', req.user.id)
-      .eq('place_id', placeId);
-
-    if (error) throw new Error(error.message);
-
-    // Get updated favorites list
-    const { data: favorites } = await supabase
-      .from('user_favorites')
-      .select('place_id')
-      .eq('user_id', req.user.id);
+    const favorites = await queryAll(
+      'SELECT place_id FROM user_favorites WHERE user_id = $1',
+      [req.user.id]
+    );
 
     res.json({
       success: true,
       message: 'Removed from favorites',
-      data: favorites?.map(f => f.place_id) || []
+      data: favorites.map(f => f.place_id)
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -137,22 +97,14 @@ router.delete('/:placeId', protect, async (req, res) => {
 // @access  Private
 router.get('/check/:placeId', protect, async (req, res) => {
   try {
-    const { data: favorite } = await supabase
-      .from('user_favorites')
-      .select('user_id')
-      .eq('user_id', req.user.id)
-      .eq('place_id', req.params.placeId)
-      .single();
+    const favorite = await queryOne(
+      'SELECT user_id FROM user_favorites WHERE user_id = $1 AND place_id = $2',
+      [req.user.id, req.params.placeId]
+    );
 
-    res.json({
-      success: true,
-      isFavorite: !!favorite
-    });
+    res.json({ success: true, isFavorite: !!favorite });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

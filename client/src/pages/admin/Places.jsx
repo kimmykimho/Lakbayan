@@ -57,7 +57,8 @@ export default function AdminPlaces() {
             categories: [],
             details: '',
             products: []
-        }
+        },
+        ownerEmail: ''
     }
 
     const [newPlaceData, setNewPlaceData] = useState(initialPlaceData)
@@ -93,7 +94,7 @@ export default function AdminPlaces() {
     const fetchPlaces = async () => {
         try {
             setLoading(true)
-            const response = await api.get('/places')
+            const response = await api.get('/places/admin/all')
             setPlaces(response.data.data || [])
         } catch (error) {
             toast.error('Failed to fetch places')
@@ -103,37 +104,56 @@ export default function AdminPlaces() {
         }
     }
 
-    const handleViewPlace = (place) => {
-        // Open edit modal with place data
-        setIsEditMode(true)
-        setSelectedPlace(place)
-        setNewPlaceData({
-            name: place.name || '',
-            description: place.description || '',
-            category: place.category || 'nature',
-            images: place.images || [],
-            location: {
-                address: place.location?.address || '',
-                barangay: place.location?.barangay || '',
-                city: place.location?.city || 'Kitcharao',
-                province: place.location?.province || 'Agusan del Norte',
-                coordinates: {
-                    lat: place.location?.coordinates?.lat || 9.4550,
-                    lng: place.location?.coordinates?.lng || 125.5731
-                }
-            },
-            contact: {
-                phone: place.contact?.phone || '',
-                email: place.contact?.email || ''
-            },
-            amenities: place.amenities || [],
-            activities: place.activities || [],
-            highlights: place.highlights || [],
-            status: place.status || 'active',
-            featured: place.featured || false
-        })
-        setImageUrl('')
-        setShowCreateModal(true)
+    const handleViewPlace = async (placeSummary) => {
+        try {
+            // Show loading toast if you want, or just wait
+            // Fetch FULL place details because list view has incomplete data
+            const response = await api.get(`/places/${placeSummary.id}`)
+            // Handle both structure formats (some APIs return data directly, others data.data)
+            const place = response.data.data || response.data
+
+            // Open edit modal with FULL place data
+            setIsEditMode(true)
+            setSelectedPlace(place)
+            setNewPlaceData({
+                name: place.name || '',
+                description: place.description || '',
+                category: place.category || 'nature',
+                images: place.images || [],
+                location: {
+                    address: place.location?.address || '',
+                    barangay: place.location?.barangay || '',
+                    city: place.location?.city || 'Kitcharao',
+                    province: place.location?.province || 'Agusan del Norte',
+                    coordinates: {
+                        lat: place.location?.coordinates?.lat || 9.4550,
+                        lng: place.location?.coordinates?.lng || 125.5731
+                    }
+                },
+                contact: {
+                    phone: place.contact?.phone || '',
+                    email: place.contact?.email || ''
+                },
+                amenities: place.amenities || [],
+                activities: place.activities || [],
+                highlights: place.highlights || [],
+                status: place.status || 'active',
+                status: place.status || 'active',
+                featured: place.featured || false,
+                ownerEmail: place.owner_email || '',
+                // Ensure other fields are mapped if needed
+                pricing: place.pricing || { entranceFee: 0, isFree: true, pricePerNight: 0 },
+                menu: place.menu || [],
+                shop: place.shop || { categories: [], details: '', products: [] },
+                accommodation: place.accommodation || { pricePerNight: 0, roomTypes: [], checkInTime: '14:00', checkOutTime: '12:00' }
+            })
+            // Set image URL to empty as we are editing existing images
+            setImageUrl('')
+            setShowCreateModal(true)
+        } catch (error) {
+            console.error('Error fetching details:', error)
+            toast.error('Failed to load place details')
+        }
     }
 
     const handleOpenCreateModal = () => {
@@ -589,6 +609,22 @@ export default function AdminPlaces() {
                                         </div>
                                     </div>
 
+                                    {/* Owner Account Section */}
+                                    <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                                        <h3 className="font-semibold text-gray-700 flex items-center gap-2">👤 Owner Account</h3>
+                                        <p className="text-sm text-gray-500">Link this place to a business owner account by entering their email.</p>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Owner Email</label>
+                                            <input
+                                                type="email"
+                                                value={newPlaceData.ownerEmail || ''}
+                                                onChange={(e) => setNewPlaceData({ ...newPlaceData, ownerEmail: e.target.value })}
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary"
+                                                placeholder="registered.user@gmail.com"
+                                            />
+                                        </div>
+                                    </div>
+
                                     {/* Contact Section */}
                                     <div className="bg-gray-50 rounded-lg p-4 space-y-4">
                                         <h3 className="font-semibold text-gray-700 flex items-center gap-2">📞 Contact Information</h3>
@@ -926,8 +962,8 @@ export default function AdminPlaces() {
                                                                 }))
                                                             }}
                                                             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${(newPlaceData.shop?.categories || []).includes(cat)
-                                                                    ? 'bg-purple-500 text-white'
-                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300'
+                                                                ? 'bg-purple-500 text-white'
+                                                                : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300'
                                                                 }`}
                                                         >
                                                             {cat}

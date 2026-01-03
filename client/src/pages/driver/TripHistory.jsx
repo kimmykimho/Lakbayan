@@ -23,19 +23,19 @@ export default function TripHistory() {
       setLoading(true)
       const response = await api.get('/transport-requests/driver')
       const allRequests = response.data.data || []
-      
+
       // Filter for completed and cancelled trips
-      const historyTrips = allRequests.filter(req => 
+      const historyTrips = allRequests.filter(req =>
         req.status === 'completed' || req.status === 'cancelled'
       )
-      
+
       setTrips(historyTrips)
-      
+
       // Calculate stats
       const completed = historyTrips.filter(t => t.status === 'completed')
       const cancelled = historyTrips.filter(t => t.status === 'cancelled')
       const totalEarnings = completed.reduce((sum, trip) => sum + (trip.fare?.final || trip.fare?.estimated || 0), 0)
-      
+
       setStats({
         totalTrips: historyTrips.length,
         completedTrips: completed.length,
@@ -133,31 +133,28 @@ export default function TripHistory() {
       <div className="flex gap-3 mb-6">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${
-            filter === 'all'
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'all'
               ? 'bg-primary-dark text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-          }`}
+            }`}
         >
           All ({trips.length})
         </button>
         <button
           onClick={() => setFilter('completed')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${
-            filter === 'completed'
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'completed'
               ? 'bg-beige-500 text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-          }`}
+            }`}
         >
           Completed ({stats.completedTrips})
         </button>
         <button
           onClick={() => setFilter('cancelled')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${
-            filter === 'cancelled'
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'cancelled'
               ? 'bg-red-600 text-white shadow-lg'
               : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-          }`}
+            }`}
         >
           Cancelled ({stats.cancelledTrips})
         </button>
@@ -169,8 +166,8 @@ export default function TripHistory() {
           <div className="text-6xl mb-4">📋</div>
           <h3 className="text-2xl font-bold text-gray-900 mb-2">No trips found</h3>
           <p className="text-gray-600">
-            {filter === 'all' 
-              ? "You haven't completed any trips yet." 
+            {filter === 'all'
+              ? "You haven't completed any trips yet."
               : `No ${filter} trips.`}
           </p>
         </div>
@@ -190,24 +187,23 @@ export default function TripHistory() {
                     <h3 className="text-xl font-bold text-gray-900">
                       {trip.destination?.placeName || 'Trip to Destination'}
                     </h3>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      trip.status === 'completed' 
-                        ? 'bg-beige-300 text-green-800' 
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${trip.status === 'completed'
+                        ? 'bg-beige-300 text-green-800'
                         : 'bg-red-100 text-red-800'
-                    }`}>
+                      }`}>
                       {trip.status === 'completed' ? '✓ Completed' : '✗ Cancelled'}
                     </span>
                   </div>
                   <p className="text-sm text-gray-500">
-                    {trip.timeline?.completed 
+                    {trip.timeline?.completed
                       ? new Date(trip.timeline.completed).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
                       : new Date(trip.createdAt).toLocaleDateString()}
                   </p>
                 </div>
@@ -236,7 +232,7 @@ export default function TripHistory() {
                   <p className="text-sm text-gray-500 mb-2">Vehicle Type</p>
                   <p className="font-semibold text-gray-900 capitalize">{trip.vehicleType}</p>
                   {trip.distance && (
-                    <p className="text-sm text-gray-600">{trip.distance.toFixed(1)} km</p>
+                    <p className="text-sm text-gray-600">{Number(trip.distance || 0).toFixed(1)} km</p>
                   )}
                 </div>
               </div>

@@ -419,7 +419,7 @@ export default function PublicLayout() {
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-gray-400 text-sm">
-              &copy; 2025 Lakbayan sa Kitcharao Tourism Platform. All rights reserved.
+              &copy; {new Date().getFullYear()} Lakbayan sa Kitcharao Tourism Platform. All rights reserved.
             </p>
             <div className="flex gap-4">
               <a href="#" className="text-gray-400 hover:text-white transition-colors">

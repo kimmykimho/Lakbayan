@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/favicon.png'
 
 export default function DriverLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -21,7 +21,7 @@ export default function DriverLayout() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -143,7 +143,7 @@ export default function DriverLayout() {
         {/* Sidebar Header */}
         <div className="p-6 border-b bg-gradient-to-r from-beige-50 to-beige-100">
           <Link to="/" className="flex items-center gap-3 mb-4">
-            <img src={logo} alt="Lakbayan sa Kitcharao" className="h-12 w-auto" />
+            <img src={logo} alt="Lakbayan sa Kitcharao" className="h-14 lg:h-16 w-auto" />
             <div>
               <h1 className="text-xl font-bold text-gray-900">Driver Panel</h1>
               <p className="text-xs text-gray-500">Manage your rides</p>
@@ -153,11 +153,10 @@ export default function DriverLayout() {
           {/* Availability Toggle */}
           <button
             onClick={toggleAvailability}
-            className={`w-full mt-4 px-4 py-3 rounded-xl font-bold text-white transition-all ${
-              isAvailable
-                ? 'bg-primary shadow-lg'
-                : 'bg-gray-400 hover:bg-gray-500'
-            }`}
+            className={`w-full mt-4 px-4 py-3 rounded-xl font-bold text-white transition-all ${isAvailable
+              ? 'bg-primary shadow-lg'
+              : 'bg-gray-400 hover:bg-gray-500'
+              }`}
           >
             {isAvailable ? '🟢 Online' : '⚫ Offline'}
           </button>
@@ -246,11 +245,10 @@ export default function DriverLayout() {
                   key={item.path}
                   to={item.path}
                   onClick={() => isMobile && setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                    isActive
-                      ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
+                    ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                 >
                   {item.icon}
                   <span className="font-medium">{item.name}</span>
@@ -309,9 +307,8 @@ export default function DriverLayout() {
           </button>
           <div className="flex items-center gap-2">
             <img src={logo} alt="Lakbayan sa Kitcharao" className="h-8" />
-            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-              isAvailable ? 'bg-beige-400 text-white' : 'bg-gray-400 text-white'
-            }`}>
+            <span className={`px-2 py-1 rounded-full text-xs font-bold ${isAvailable ? 'bg-beige-400 text-white' : 'bg-gray-400 text-white'
+              }`}>
               {isAvailable ? 'Online' : 'Offline'}
             </span>
           </div>

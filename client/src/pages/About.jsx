@@ -156,9 +156,9 @@ export default function About() {
                                 >
                                     {/* Image */}
                                     <div className="relative h-40 sm:h-48 md:h-56">
-                                        {item.images && item.images.length > 0 ? (
+                                        {(item.image || item.images?.[0]) ? (
                                             <img
-                                                src={typeof item.images[0] === 'object' ? item.images[0].url : item.images[0]}
+                                                src={item.image || (typeof item.images?.[0] === 'object' ? item.images?.[0]?.url : item.images?.[0])}
                                                 alt={item.title}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                 onError={(e) => {

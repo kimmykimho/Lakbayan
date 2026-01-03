@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { queryAll, queryOne, query } = require('../config/neon');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET /api/owners
@@ -8,76 +8,80 @@ const { protect, authorize } = require('../middleware/auth');
 // @access  Private/Admin
 router.get('/', protect, authorize('admin'), async (req, res) => {
   try {
-    const { data: owners, error } = await supabaseAdmin
-      .from('business_owners')
-      .select(`*, users!user_id(id, name, email, phone, avatar)`)
-      .order('created_at', { ascending: false });
-
-    if (error) throw new Error(error.message);
+    const owners = await queryAll(
+      `SELECT bo.*, u.id as user_db_id, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar
+       FROM business_owners bo
+       LEFT JOIN users u ON bo.user_id = u.id
+       ORDER BY bo.created_at DESC`
+    );
 
     const formatted = owners.map(o => ({
       ...o,
-      user: o.users,
-      users: undefined
+      user: { id: o.user_db_id, name: o.user_name, email: o.user_email, phone: o.user_phone, avatar: o.user_avatar }
     }));
 
-    res.json({
-      success: true,
-      count: formatted.length,
-      data: formatted
-    });
+    res.json({ success: true, count: formatted.length, data: formatted });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
+
+// @route   GET /api/owners/applications
+// @desc    Get all business owner applications (Admin only)
+// @access  Private/Admin
+router.get('/applications', protect, authorize('admin'), async (req, res) => {
+  try {
+    const applications = await queryAll(
+      `SELECT bo.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar
+       FROM business_owners bo
+       LEFT JOIN users u ON bo.user_id = u.id
+       ORDER BY bo.created_at DESC`
+    );
+
+    const formatted = applications.map(app => ({
+      ...app,
+      user: { id: app.user_id, name: app.user_name, email: app.user_email, phone: app.user_phone, avatar: app.user_avatar }
+    }));
+
+    res.json({ success: true, count: formatted.length, data: formatted });
+  } catch (error) {
+    console.error('Error fetching owner applications:', error);
+    res.json({ success: true, count: 0, data: [] });
+  }
+});
+
 // @route   POST /api/owners/apply
 // @desc    Apply to become a business owner
 // @access  Private (Tourist)
 router.post('/apply', protect, async (req, res) => {
   try {
-    const { businessName, businessType, address, phone, email, website, description, documents } = req.body;
+    // Accept full formData object from frontend
+    const { businessInfo, documents, address, location, operatingHours } = req.body;
 
-    // Check if user already applied
-    const { data: existingApplication } = await supabaseAdmin
-      .from('business_owners')
-      .select('id')
-      .eq('user_id', req.user.id)
-      .single();
-
+    const existingApplication = await queryOne('SELECT id FROM business_owners WHERE user_id = $1', [req.user.id]);
     if (existingApplication) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already applied. Please wait for admin approval.'
-      });
+      return res.status(400).json({ success: false, message: 'You have already applied' });
     }
 
-    // Create business owner application using supabaseAdmin to bypass RLS
-    const { data: businessOwner, error } = await supabaseAdmin
-      .from('business_owners')
-      .insert({
-        user_id: req.user.id,
-        business_info: { businessName, businessType, address, phone, email, website, description },
-        documents: documents || [],
-        verification_status: 'pending'
-      })
-      .select()
-      .single();
+    // Store the complete application data in business_info JSONB column
+    const applicationData = {
+      businessInfo: businessInfo || {},
+      documents: documents || [],
+      address: address || {},
+      location: location || {},
+      operatingHours: operatingHours || {}
+    };
 
-    if (error) throw new Error(error.message);
+    const result = await query(
+      `INSERT INTO business_owners (user_id, business_info, verification_status, created_at, updated_at)
+       VALUES ($1, $2, 'pending', NOW(), NOW()) RETURNING *`,
+      [req.user.id, JSON.stringify(applicationData)]
+    );
 
-    res.status(201).json({
-      success: true,
-      message: 'Application submitted successfully. Please wait for admin approval.',
-      data: businessOwner
-    });
+    res.status(201).json({ success: true, message: 'Application submitted', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    console.error('Business owner apply error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -85,530 +89,332 @@ router.post('/apply', protect, async (req, res) => {
 // @desc    Get current user's business owner application
 // @access  Private
 router.get('/my-application', protect, async (req, res) => {
+  console.log('📍 HIT: /owners/my-application route, user.id:', req.user?.id);
   try {
-    const { data: application, error } = await supabaseAdmin
-      .from('business_owners')
-      .select('*')
-      .eq('user_id', req.user.id)
-      .single();
+    const application = await queryOne(
+      `SELECT bo.*, u.name as user_name, u.email as user_email
+       FROM business_owners bo
+       LEFT JOIN users u ON bo.user_id = u.id
+       WHERE bo.user_id = $1`,
+      [req.user.id]
+    );
 
-    if (error || !application) {
-      return res.status(404).json({
-        success: false,
-        message: 'No application found'
-      });
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'No application found' });
     }
 
-    res.json({
-      success: true,
-      data: application
-    });
+    res.json({ success: true, data: application });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   GET /api/owners/profile
-// @desc    Get owner profile
-// @access  Private (Owner)
+// @desc    Get current owner profile (alias for /me, used by dashboard)
+// @access  Private (Business Owner)
 router.get('/profile', protect, authorize('business_owner'), async (req, res) => {
   try {
-    console.log('📊 Fetching owner profile for user:', req.user.id);
+    let owner = await queryOne(
+      `SELECT bo.*, u.name as user_name, u.email as user_email
+       FROM business_owners bo
+       LEFT JOIN users u ON bo.user_id = u.id
+       WHERE bo.user_id = $1`,
+      [req.user.id]
+    );
 
-    // Get user info using supabaseAdmin to bypass RLS
-    const { data: user, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', req.user.id)
-      .single();
-
-    if (userError || !user) {
-      console.error('❌ User not found:', userError);
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    delete user.password;
-
-    // Get owner profile using supabaseAdmin
-    const { data: owner, error: ownerError } = await supabaseAdmin
-      .from('business_owners')
-      .select('*')
-      .eq('user_id', req.user.id)
-      .single();
-
-    if (ownerError) {
-      console.log('⚠️ Owner profile query error (may not exist yet):', ownerError.message);
-    }
-
-    // Get owned places using supabaseAdmin
-    const { data: ownedPlaces } = await supabaseAdmin
-      .from('user_owned_places')
-      .select('place_id, places!place_id(*)')
-      .eq('user_id', req.user.id);
-
-    // Also get places created by this user
-    const { data: createdPlaces } = await supabaseAdmin
-      .from('places')
-      .select('*')
-      .eq('created_by', req.user.id);
-
-    // Combine both
-    const allPlaces = [
-      ...(ownedPlaces?.map(op => op.places) || []),
-      ...(createdPlaces || [])
-    ].filter((p, i, arr) => p && arr.findIndex(x => x.id === p.id) === i);
-
-    res.json({
-      success: true,
-      data: {
-        ...owner,
-        user,
-        places: allPlaces,
-        businesses: []
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   PUT /api/owners/profile
-// @desc    Update owner profile
-// @access  Private (Owner)
-router.put('/profile', protect, authorize('business_owner'), async (req, res) => {
-  try {
-    const { businessInfo, bankDetails } = req.body;
-
-    const { data: currentOwner } = await supabase
-      .from('business_owners')
-      .select('*')
-      .eq('user_id', req.user.id)
-      .single();
-
-    if (!currentOwner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Owner profile not found'
-      });
-    }
-
-    const updateData = { updated_at: new Date().toISOString() };
-    if (businessInfo) updateData.business_info = { ...currentOwner.business_info, ...businessInfo };
-    if (bankDetails) updateData.bank_details = { ...currentOwner.bank_details, ...bankDetails };
-
-    const { data: owner, error } = await supabase
-      .from('business_owners')
-      .update(updateData)
-      .eq('user_id', req.user.id)
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: owner
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   GET /api/owners/applications
-// @desc    Get all owner applications (Admin)
-// @access  Private (Admin)
-router.get('/applications', protect, authorize('admin'), async (req, res) => {
-  try {
-    const { status } = req.query;
-
-    // Use supabaseAdmin to bypass RLS and fetch all applications
-    let query = supabaseAdmin
-      .from('business_owners')
-      .select(`*, users!user_id(id, name, email, phone, avatar)`)
-      .order('created_at', { ascending: false });
-
-    if (status) {
-      query = query.eq('verification_status', status);
-    }
-
-    const { data: applications, error } = await query;
-
-    if (error) throw new Error(error.message);
-
-    const formatted = applications.map(a => ({
-      ...a,
-      user: a.users,
-      users: undefined
-    }));
-
-    res.json({
-      success: true,
-      count: formatted.length,
-      data: formatted
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   PUT /api/owners/applications/:id/approve
-// @desc    Approve owner application
-// @access  Private (Admin)
-router.put('/applications/:id/approve', protect, authorize('admin'), async (req, res) => {
-  try {
-    const { data: owner } = await supabaseAdmin
-      .from('business_owners')
-      .select('user_id')
-      .eq('id', req.params.id)
-      .single();
-
+    // Auto-create/heal: If user is business_owner but has no record, create one
     if (!owner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Application not found'
-      });
+      const insertResult = await query(
+        `INSERT INTO business_owners (user_id, status, verification_status, business_info) 
+          VALUES ($1, 'active', 'approved', '{}') 
+          RETURNING *`,
+        [req.user.id]
+      );
+      const newRecord = insertResult.rows[0];
+      // Fetch with user details again or construct object
+      owner = {
+        ...newRecord,
+        user_name: req.user.name || 'Business Owner', // Fallback if not joined
+        user_email: req.user.email
+      };
     }
 
-    const { data: updated, error } = await supabaseAdmin
-      .from('business_owners')
-      .update({
-        verification_status: 'approved',
-        verified: true,
-        status: 'active',
-        approved_by: req.user.id,
-        approved_at: new Date().toISOString()
-      })
-      .eq('id', req.params.id)
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    // Update user role
-    await supabaseAdmin
-      .from('users')
-      .update({ role: 'business_owner' })
-      .eq('id', owner.user_id);
-
-    res.json({
-      success: true,
-      message: 'Application approved successfully',
-      data: updated
-    });
+    const places = await queryAll('SELECT * FROM places WHERE owner_id = $1', [req.user.id]);
+    owner.places = places;
+    res.json({ success: true, data: owner });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   PUT /api/owners/applications/:id/reject
-// @desc    Reject owner application
-// @access  Private (Admin)
-router.put('/applications/:id/reject', protect, authorize('admin'), async (req, res) => {
-  try {
-    const { reason } = req.body;
-
-    const { data: owner, error } = await supabaseAdmin
-      .from('business_owners')
-      .update({
-        verification_status: 'rejected',
-        verified: false,
-        rejection_reason: reason || 'Application does not meet requirements'
-      })
-      .eq('id', req.params.id)
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    if (!owner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Application not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Application rejected',
-      data: owner
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   GET /api/owners/statistics
 // @desc    Get owner statistics
-// @access  Private (Owner)
+// @access  Private (Business Owner)
 router.get('/statistics', protect, authorize('business_owner'), async (req, res) => {
   try {
-    // Get owned places
-    const { data: ownedPlaces } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', req.user.id);
-
-    // Also get places created by this user
-    const { data: createdPlaces } = await supabase
-      .from('places')
-      .select('id')
-      .eq('created_by', req.user.id);
-
-    const ownedPlaceIds = ownedPlaces?.map(op => op.place_id) || [];
-    const createdPlaceIds = createdPlaces?.map(p => p.id) || [];
-    const allPlaceIds = [...new Set([...ownedPlaceIds, ...createdPlaceIds])];
+    const places = await queryAll('SELECT id, name, status FROM places WHERE owner_id = $1', [req.user.id]);
+    const placeIds = places.map(p => p.id);
 
     let totalBookings = 0;
+    let totalReviews = 0;
     let totalRevenue = 0;
-    let pendingBookings = 0;
-    let confirmedBookings = 0;
-    let completedBookings = 0;
 
-    if (allPlaceIds.length > 0) {
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('status, payment')
-        .in('place_id', allPlaceIds);
-
-      if (bookings) {
-        totalBookings = bookings.length;
-        bookings.forEach(b => {
-          if (b.payment?.amount) totalRevenue += b.payment.amount;
-          if (b.status === 'pending') pendingBookings++;
-          if (b.status === 'confirmed') confirmedBookings++;
-          if (b.status === 'completed') completedBookings++;
-        });
-      }
+    if (placeIds.length > 0) {
+      const bookingsResult = await queryOne('SELECT COUNT(*) as count FROM bookings WHERE place_id = ANY($1)', [placeIds]);
+      const reviewsResult = await queryOne('SELECT COUNT(*) as count FROM reviews WHERE place_id = ANY($1)', [placeIds]);
+      totalBookings = parseInt(bookingsResult?.count || 0);
+      totalReviews = parseInt(reviewsResult?.count || 0);
     }
-
-    // Get owner profile for additional stats
-    const { data: owner } = await supabase
-      .from('business_owners')
-      .select('statistics')
-      .eq('user_id', req.user.id)
-      .single();
 
     res.json({
       success: true,
       data: {
-        statistics: {
-          ...(owner?.statistics || {}),
-          totalBookings,
-          totalRevenue,
-          pendingBookings,
-          confirmedBookings,
-          completedBookings
-        },
-        totalBusinesses: 0,
-        totalPlaces: allPlaceIds.length
+        totalPlaces: places.length,
+        totalBookings,
+        totalReviews,
+        totalRevenue,
+        places
       }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   PUT /api/owners/places/:placeId
-// @desc    Update owner's place
-// @access  Private (Owner)
-router.put('/places/:placeId', protect, authorize('business_owner'), async (req, res) => {
-  try {
-    // Check ownership
-    const { data: ownedPlace } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', req.user.id)
-      .eq('place_id', req.params.placeId)
-      .single();
-
-    const { data: existingPlace } = await supabase
-      .from('places')
-      .select('created_by')
-      .eq('id', req.params.placeId)
-      .single();
-
-    if (!existingPlace) {
-      return res.status(404).json({
-        success: false,
-        message: 'Place not found'
-      });
-    }
-
-    const isOwner = ownedPlace || existingPlace.created_by === req.user.id;
-
-    if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to edit this place'
-      });
-    }
-
-    const updateData = { ...req.body };
-    updateData.updated_at = new Date().toISOString();
-
-    const { data: place, error } = await supabase
-      .from('places')
-      .update(updateData)
-      .eq('id', req.params.placeId)
-      .select()
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    res.json({
-      success: true,
-      message: 'Place updated successfully',
-      data: place
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   GET /api/owners/places/:placeId
-// @desc    Get single place details (owner only)
-// @access  Private (Owner)
-router.get('/places/:placeId', protect, authorize('business_owner'), async (req, res) => {
-  try {
-    // Check ownership
-    const { data: ownedPlace } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', req.user.id)
-      .eq('place_id', req.params.placeId)
-      .single();
-
-    const { data: place, error } = await supabase
-      .from('places')
-      .select('*')
-      .eq('id', req.params.placeId)
-      .single();
-
-    if (error || !place) {
-      return res.status(404).json({
-        success: false,
-        message: 'Place not found'
-      });
-    }
-
-    const isOwner = ownedPlace || place.created_by === req.user.id;
-
-    if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to view this place'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: place
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   GET /api/owners/reviews
 // @desc    Get reviews for owner's places
-// @access  Private (Owner)
+// @access  Private (Business Owner)
 router.get('/reviews', protect, authorize('business_owner'), async (req, res) => {
   try {
-    // Get owned places
-    const { data: ownedPlaces } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', req.user.id);
+    const places = await queryAll('SELECT id FROM places WHERE owner_id = $1', [req.user.id]);
+    const placeIds = places.map(p => p.id);
 
-    // Also get places created by this user
-    const { data: createdPlaces } = await supabase
-      .from('places')
-      .select('id')
-      .eq('created_by', req.user.id);
-
-    const allPlaceIds = [
-      ...(ownedPlaces?.map(op => op.place_id) || []),
-      ...(createdPlaces?.map(p => p.id) || [])
-    ].filter((id, i, arr) => arr.indexOf(id) === i);
-
-    if (allPlaceIds.length === 0) {
-      return res.json({
-        success: true,
-        data: []
-      });
+    let reviews = [];
+    if (placeIds.length > 0) {
+      reviews = await queryAll(
+        `SELECT r.*, u.name as user_name, u.avatar as user_avatar, p.name as place_name
+         FROM reviews r
+         LEFT JOIN users u ON r.user_id = u.id
+         LEFT JOIN places p ON r.place_id = p.id
+         WHERE r.place_id = ANY($1)
+         ORDER BY r.created_at DESC
+         LIMIT 20`,
+        [placeIds]
+      );
     }
 
-    // Fetch reviews for all owned places
-    const { data: reviews, error } = await supabase
-      .from('reviews')
-      .select(`
-        id,
-        rating,
-        title,
-        comment,
-        created_at,
-        place_id,
-        places!place_id(id, name),
-        users!user_id(id, name, avatar)
-      `)
-      .in('place_id', allPlaceIds)
-      .order('created_at', { ascending: false })
-      .limit(20);
+    res.json({ success: true, data: reviews });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-    if (error) throw new Error(error.message);
+// @route   GET /api/owners/me
+// @desc    Get current owner profile
+// @access  Private (Business Owner)
+router.get('/me', protect, authorize('business_owner'), async (req, res) => {
+  try {
+    let owner = await queryOne(
+      `SELECT bo.*, u.name as user_name, u.email as user_email
+       FROM business_owners bo
+       LEFT JOIN users u ON bo.user_id = u.id
+       WHERE bo.user_id = $1`,
+      [req.user.id]
+    );
 
-    // Format response
-    const formattedReviews = (reviews || []).map(r => ({
-      id: r.id,
-      rating: r.rating,
-      title: r.title,
-      comment: r.comment,
-      created_at: r.created_at,
-      place: r.places,
-      user: r.users
-    }));
+    // Auto-create/heal: If user is business_owner but has no record, create one
+    if (!owner) {
+      const insertResult = await query(
+        `INSERT INTO business_owners (user_id, status, verification_status, business_info) 
+          VALUES ($1, 'active', 'approved', '{}') 
+          RETURNING *`,
+        [req.user.id]
+      );
+      const newRecord = insertResult.rows[0];
+      owner = {
+        ...newRecord,
+        user_name: req.user.name || 'Business Owner',
+        user_email: req.user.email
+      };
+    }
+
+    const places = await queryAll('SELECT * FROM places WHERE owner_id = $1', [req.user.id]);
+
+    owner.places = places;
+    res.json({ success: true, data: owner });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/owners/dashboard
+// @desc    Get owner dashboard data
+// @access  Private (Business Owner)
+router.get('/dashboard', protect, authorize('business_owner'), async (req, res) => {
+  try {
+    const places = await queryAll('SELECT id, name, status FROM places WHERE owner_id = $1', [req.user.id]);
+    const placeIds = places.map(p => p.id);
+
+    let bookings = [];
+    let reviews = [];
+    if (placeIds.length > 0) {
+      bookings = await queryAll('SELECT * FROM bookings WHERE place_id = ANY($1) ORDER BY created_at DESC LIMIT 10', [placeIds]);
+      reviews = await queryAll('SELECT * FROM reviews WHERE place_id = ANY($1) ORDER BY created_at DESC LIMIT 10', [placeIds]);
+    }
+
+    const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+    const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
 
     res.json({
       success: true,
-      data: formattedReviews
+      data: {
+        totalPlaces: places.length,
+        pendingBookings,
+        confirmedBookings,
+        totalReviews: reviews.length,
+        recentBookings: bookings,
+        recentReviews: reviews
+      }
     });
   } catch (error) {
-    console.error('Failed to fetch owner reviews:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   PUT /api/owners/:id/approve
+// @desc    Approve owner application
+// @access  Private/Admin
+router.put('/:id/approve', protect, authorize('admin'), async (req, res) => {
+  try {
+    const owner = await queryOne('SELECT user_id FROM business_owners WHERE id = $1', [req.params.id]);
+    if (!owner) {
+      return res.status(404).json({ success: false, message: 'Owner application not found' });
+    }
+
+    await query(
+      `UPDATE business_owners SET verification_status = 'approved', status = 'active', approved_by = $1, approved_at = NOW(), updated_at = NOW() 
+       WHERE id = $2`,
+      [req.user.id, req.params.id]
+    );
+
+    await query('UPDATE users SET role = $1 WHERE id = $2', ['business_owner', owner.user_id]);
+
+    res.json({ success: true, message: 'Owner application approved' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   PUT /api/owners/:id/reject
+// @desc    Reject owner application
+// @access  Private/Admin
+router.put('/:id/reject', protect, authorize('admin'), async (req, res) => {
+  try {
+    await query(
+      `UPDATE business_owners SET verification_status = 'rejected', updated_at = NOW() WHERE id = $1`,
+      [req.params.id]
+    );
+
+    res.json({ success: true, message: 'Owner application rejected' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/owners/:id
+// @desc    Get owner by ID
+// @access  Private/Admin
+router.get('/:id', protect, authorize('admin'), async (req, res) => {
+  console.log('📍 HIT: /owners/:id route, params.id:', req.params.id);
+  try {
+    const owner = await queryOne(
+      `SELECT bo.*, u.name as user_name, u.email as user_email, u.phone as user_phone
+       FROM business_owners bo
+       LEFT JOIN users u ON bo.user_id = u.id
+       WHERE bo.id = $1`,
+      [req.params.id]
+    );
+
+    if (!owner) {
+      return res.status(404).json({ success: false, message: 'Owner not found' });
+    }
+
+    owner.user = { name: owner.user_name, email: owner.user_email, phone: owner.user_phone };
+    res.json({ success: true, data: owner });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   PUT /api/owners/places/:id
+// @desc    Update owner's place
+// @access  Private (Business Owner)
+router.put('/places/:id', protect, authorize('business_owner'), async (req, res) => {
+  try {
+    // Verify the place belongs to this owner
+    const place = await queryOne('SELECT id FROM places WHERE id = $1 AND owner_id = $2', [req.params.id, req.user.id]);
+    if (!place) {
+      return res.status(404).json({ success: false, message: 'Place not found or not authorized' });
+    }
+
+    const updateData = req.body;
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined && key !== 'id' && key !== '_id') {
+        const columnName = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        if (typeof value === 'object' && value !== null) {
+          fields.push(`${columnName} = $${paramIndex}`);
+          values.push(JSON.stringify(value));
+        } else {
+          fields.push(`${columnName} = $${paramIndex}`);
+          values.push(value);
+        }
+        paramIndex++;
+      }
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'No fields to update' });
+    }
+
+    fields.push(`updated_at = NOW()`);
+    values.push(req.params.id);
+
+    const result = await query(
+      `UPDATE places SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+
+    res.json({ success: true, message: 'Place updated', data: result.rows[0] });
+  } catch (error) {
+    console.error('Update place error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   PUT /api/owners/businesses/:id
+// @desc    Update owner's business info
+// @access  Private (Business Owner)
+router.put('/businesses/:id', protect, authorize('business_owner'), async (req, res) => {
+  try {
+    const owner = await queryOne('SELECT id FROM business_owners WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (!owner) {
+      return res.status(404).json({ success: false, message: 'Business not found or not authorized' });
+    }
+
+    const updateData = req.body;
+    const result = await query(
+      `UPDATE business_owners SET business_info = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [JSON.stringify(updateData), req.params.id]
+    );
+
+    res.json({ success: true, message: 'Business updated', data: result.rows[0] });
+  } catch (error) {
+    console.error('Update business error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

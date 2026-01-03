@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { queryAll, queryOne, query } = require('../config/neon');
 const { protect, authorize } = require('../middleware/auth');
 
-// Generate confirmation code
 const generateConfirmationCode = () => {
   return 'BV' + Date.now().toString(36).toUpperCase() +
     Math.random().toString(36).substr(2, 5).toUpperCase();
@@ -14,43 +13,50 @@ const generateConfirmationCode = () => {
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const userId = req.user.id;
-    console.log('📋 Fetching bookings for user:', userId);
+    const bookings = await queryAll(
+      `SELECT b.*, p.id as place_id, p.name as place_name, p.images as place_images, p.location as place_location
+       FROM bookings b
+       LEFT JOIN places p ON b.place_id = p.id
+       WHERE b.user_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.user.id]
+    );
 
-    const { data: bookings, error } = await supabaseAdmin
-      .from('bookings')
-      .select(`
-        *,
-        places!place_id(id, name, images, location)
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('❌ Error fetching bookings:', error);
-      throw new Error(error.message);
-    }
-
-    console.log('✅ Found', bookings.length, 'bookings');
-
-    // Rename places to place for frontend compatibility
     const formattedBookings = bookings.map(b => ({
       ...b,
-      place: b.places,
-      places: undefined
+      place: { id: b.place_id, name: b.place_name, images: b.place_images, location: b.place_location }
     }));
 
-    res.json({
-      success: true,
-      count: formattedBookings.length,
-      data: formattedBookings
-    });
+    res.json({ success: true, count: formattedBookings.length, data: formattedBookings });
+  } catch (error) {
+    console.error('Error fetching bookings:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/bookings/my
+// @desc    Get current user's bookings (alias for /)
+// @access  Private
+router.get('/my', protect, async (req, res) => {
+  try {
+    const bookings = await queryAll(
+      `SELECT b.*, p.id as place_id, p.name as place_name, p.images as place_images, p.location as place_location
+       FROM bookings b
+       LEFT JOIN places p ON b.place_id = p.id
+       WHERE b.user_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.user.id]
+    );
+
+    const formattedBookings = bookings.map(b => ({
+      ...b,
+      place: { id: b.place_id, name: b.place_name, images: b.place_images, location: b.place_location }
+    }));
+
+    res.json({ success: true, count: formattedBookings.length, data: formattedBookings });
   } catch (error) {
     console.error('Error fetching user bookings:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -59,73 +65,33 @@ router.get('/', protect, async (req, res) => {
 // @access  Private (Business Owner)
 router.get('/owner', protect, authorize('business_owner'), async (req, res) => {
   try {
-    console.log('📊 Fetching owner bookings for user:', req.user.id);
-
-    // First get places owned by this business owner
-    const { data: createdPlaces } = await supabaseAdmin
-      .from('places')
-      .select('id')
-      .eq('created_by', req.user.id);
-
-    // Also check user_owned_places table
-    const { data: ownedPlaces } = await supabaseAdmin
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', req.user.id);
-
-    const placeIds = [
-      ...(createdPlaces?.map(p => p.id) || []),
-      ...(ownedPlaces?.map(p => p.place_id) || [])
-    ].filter((id, idx, arr) => arr.indexOf(id) === idx);
-
-    console.log('Found', placeIds.length, 'owned places:', placeIds);
+    const places = await queryAll('SELECT id FROM places WHERE owner_id = $1', [req.user.id]);
+    const placeIds = places.map(p => p.id);
 
     if (placeIds.length === 0) {
-      return res.json({
-        success: true,
-        count: 0,
-        data: []
-      });
+      return res.json({ success: true, count: 0, data: [] });
     }
 
-    // Get bookings for these places
-    const { data: bookings, error } = await supabaseAdmin
-      .from('bookings')
-      .select(`
-        *,
-        places!place_id(id, name, images, location),
-        users!user_id(id, name, email, phone)
-      `)
-      .in('place_id', placeIds)
-      .order('created_at', { ascending: false });
+    const bookings = await queryAll(
+      `SELECT b.*, p.name as place_name, p.images as place_images, u.name as user_name, u.email as user_email
+       FROM bookings b
+       LEFT JOIN places p ON b.place_id = p.id
+       LEFT JOIN users u ON b.user_id = u.id
+       WHERE b.place_id = ANY($1)
+       ORDER BY b.created_at DESC`,
+      [placeIds]
+    );
 
-    if (error) {
-      console.error('❌ Error fetching owner bookings:', error);
-      throw new Error(error.message);
-    }
-
-    console.log('✅ Found', bookings.length, 'bookings for owner places');
-
-    // Format the response
     const formattedBookings = bookings.map(b => ({
       ...b,
-      place: b.places,
-      user: b.users,
-      places: undefined,
-      users: undefined
+      place: { name: b.place_name, images: b.place_images },
+      user: { name: b.user_name, email: b.user_email }
     }));
 
-    res.json({
-      success: true,
-      count: formattedBookings.length,
-      data: formattedBookings
-    });
+    res.json({ success: true, count: formattedBookings.length, data: formattedBookings });
   } catch (error) {
     console.error('Error fetching owner bookings:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -136,160 +102,22 @@ router.post('/', protect, async (req, res) => {
   try {
     const { place, visitDate, visitTime, numberOfVisitors, transport, specialRequests, contactInfo } = req.body;
 
-    console.log('📅 Creating booking:', { place, visitDate, visitTime, numberOfVisitors });
-
-    // Check if place exists
-    const { data: placeDoc, error: placeError } = await supabaseAdmin
-      .from('places')
-      .select('id')
-      .eq('id', place)
-      .single();
-
-    if (placeError || !placeDoc) {
-      console.log('❌ Place not found:', place);
-      return res.status(404).json({
-        success: false,
-        message: 'Place not found'
-      });
+    const placeDoc = await queryOne('SELECT id FROM places WHERE id = $1', [place]);
+    if (!placeDoc) {
+      return res.status(404).json({ success: false, message: 'Place not found' });
     }
 
-    const userId = req.user.id;
     const confirmationCode = generateConfirmationCode();
+    const result = await query(
+      `INSERT INTO bookings (user_id, place_id, visit_date, visit_time, number_of_visitors, transport, special_requests, confirmation_code, contact_info, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW(), NOW())
+       RETURNING *`,
+      [req.user.id, place, visitDate, visitTime, numberOfVisitors, JSON.stringify(transport || {}), specialRequests, confirmationCode, JSON.stringify(contactInfo || {})]
+    );
 
-    // Create booking using supabaseAdmin to bypass RLS
-    const { data: booking, error } = await supabaseAdmin
-      .from('bookings')
-      .insert({
-        user_id: userId,
-        place_id: place,
-        visit_date: visitDate,
-        visit_time: visitTime,
-        number_of_visitors: numberOfVisitors,
-        transport: transport || {},
-        special_requests: specialRequests,
-        confirmation_code: confirmationCode,
-        contact_info: contactInfo || {
-          name: req.user.name,
-          email: req.user.email,
-          phone: req.user.phone
-        }
-      })
-      .select(`
-        *,
-        places!place_id(id, name, images, location)
-      `)
-      .single();
-
-    if (error) {
-      console.error('❌ Booking creation error:', error);
-      throw new Error(error.message);
-    }
-
-    console.log('✅ Booking created successfully:', booking.id);
-
-    // Update user stats using supabaseAdmin
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('stats')
-      .eq('id', userId)
-      .single();
-
-    const currentStats = userData?.stats || { bookingsCount: 0 };
-    await supabaseAdmin
-      .from('users')
-      .update({
-        stats: {
-          ...currentStats,
-          bookingsCount: (currentStats.bookingsCount || 0) + 1
-        }
-      })
-      .eq('id', userId);
-
-    // Format response
-    booking.place = booking.places;
-    delete booking.places;
-
-    res.status(201).json({
-      success: true,
-      message: 'Booking created successfully',
-      data: booking
-    });
+    res.status(201).json({ success: true, message: 'Booking created', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// @route   GET /api/bookings/owner
-// @desc    Get bookings for owner's places
-// @access  Private (Owner)
-router.get('/owner', protect, async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Get user's owned places
-    const { data: ownedPlaces } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', userId);
-
-    // Also get places created by this user
-    const { data: createdPlaces } = await supabase
-      .from('places')
-      .select('id')
-      .eq('created_by', userId);
-
-    const ownedPlaceIds = ownedPlaces?.map(op => op.place_id) || [];
-    const createdPlaceIds = createdPlaces?.map(p => p.id) || [];
-    const allPlaceIds = [...new Set([...ownedPlaceIds, ...createdPlaceIds])];
-
-    console.log(`📊 Owner ${userId} - Total places: ${allPlaceIds.length}`);
-
-    if (allPlaceIds.length === 0) {
-      return res.json({
-        success: true,
-        count: 0,
-        data: []
-      });
-    }
-
-    // Find all bookings for owner's places
-    const { data: bookings, error } = await supabase
-      .from('bookings')
-      .select(`
-        *,
-        places!place_id(id, name, images, location, created_by),
-        users!user_id(id, name, email, phone)
-      `)
-      .in('place_id', allPlaceIds)
-      .order('created_at', { ascending: false });
-
-    if (error) throw new Error(error.message);
-
-    // Format bookings
-    const formattedBookings = bookings.map(b => ({
-      ...b,
-      place: b.places,
-      user: b.users,
-      places: undefined,
-      users: undefined
-    }));
-
-    console.log(`📋 Found ${formattedBookings.length} bookings for owner ${userId}`);
-
-    res.json({
-      success: true,
-      count: formattedBookings.length,
-      data: formattedBookings
-    });
-  } catch (error) {
-    console.error('Error fetching owner bookings:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to load bookings'
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -298,275 +126,103 @@ router.get('/owner', protect, async (req, res) => {
 // @access  Private
 router.get('/:id', protect, async (req, res) => {
   try {
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .select(`
-        *,
-        places!place_id(id, name, images, location, contact),
-        users!user_id(id, name, email, phone)
-      `)
-      .eq('id', req.params.id)
-      .single();
+    const booking = await queryOne(
+      `SELECT b.*, p.name as place_name, p.images as place_images
+       FROM bookings b
+       LEFT JOIN places p ON b.place_id = p.id
+       WHERE b.id = $1`,
+      [req.params.id]
+    );
 
-    if (error || !booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Format response
-    booking.place = booking.places;
-    booking.user = booking.users;
-    delete booking.places;
-    delete booking.users;
-
-    // Ensure user can only access their own bookings
-    const userId = req.user.id;
-    if (booking.user_id !== userId && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to access this booking'
-      });
+    if (booking.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    res.json({
-      success: true,
-      data: booking
-    });
+    booking.place = { name: booking.place_name, images: booking.place_images };
+    res.json({ success: true, data: booking });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   PUT /api/bookings/:id/confirm
-// @desc    Confirm booking (Owner only)
-// @access  Private (Owner)
+// @desc    Confirm booking
+// @access  Private
 router.put('/:id/confirm', protect, async (req, res) => {
   try {
-    const { data: booking, error: fetchError } = await supabase
-      .from('bookings')
-      .select(`*, places!place_id(id, name, created_by)`)
-      .eq('id', req.params.id)
-      .single();
-
-    if (fetchError || !booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
+    const result = await query(
+      `UPDATE bookings SET status = 'confirmed', updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
-
-    // Check if user owns the place
-    const userId = req.user.id;
-    const { data: ownedPlace } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', userId)
-      .eq('place_id', booking.place_id)
-      .single();
-
-    const isOwner = ownedPlace || booking.places?.created_by === userId;
-
-    if (!isOwner && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to confirm this booking'
-      });
-    }
-
-    if (booking.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot confirm booking with status: ${booking.status}`
-      });
-    }
-
-    const { data: updated, error } = await supabase
-      .from('bookings')
-      .update({ status: 'confirmed', updated_at: new Date().toISOString() })
-      .eq('id', req.params.id)
-      .select(`*, places!place_id(id, name, images, location), users!user_id(id, name, email, phone)`)
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    updated.place = updated.places;
-    updated.user = updated.users;
-    delete updated.places;
-    delete updated.users;
-
-    res.json({
-      success: true,
-      message: 'Booking confirmed successfully',
-      data: updated
-    });
+    res.json({ success: true, message: 'Booking confirmed', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   PUT /api/bookings/:id/complete
-// @desc    Mark booking as completed (Owner only)
-// @access  Private (Owner)
+// @desc    Mark booking as completed
+// @access  Private
 router.put('/:id/complete', protect, async (req, res) => {
   try {
-    const { data: booking, error: fetchError } = await supabase
-      .from('bookings')
-      .select(`*, places!place_id(id, name, created_by)`)
-      .eq('id', req.params.id)
-      .single();
+    // First get the booking details to know place_id and number_of_visitors
+    const booking = await queryOne('SELECT place_id, number_of_visitors FROM bookings WHERE id = $1', [req.params.id]);
 
-    if (fetchError || !booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Check ownership
-    const userId = req.user.id;
-    const { data: ownedPlace } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', userId)
-      .eq('place_id', booking.place_id)
-      .single();
+    const result = await query(
+      `UPDATE bookings SET status = 'completed', updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
 
-    const isOwner = ownedPlace || booking.places?.created_by === userId;
-
-    if (!isOwner && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to complete this booking'
-      });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Booking not found (concurrent delete?)' });
     }
 
-    if (booking.status !== 'confirmed') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot complete booking with status: ${booking.status}`
-      });
-    }
+    // Increment visitors count in places table
+    // Assuming visitors is a JSONB column with a 'total' field
+    await query(
+      `UPDATE places 
+       SET visitors = jsonb_set(
+         COALESCE(visitors, '{"total": 0}'), 
+         '{total}', 
+         (COALESCE((visitors->>'total')::int, 0) + $1)::text::jsonb
+       )
+       WHERE id = $2`,
+      [booking.number_of_visitors || 1, booking.place_id]
+    );
 
-    const { data: updated, error } = await supabase
-      .from('bookings')
-      .update({
-        status: 'completed',
-        check_out: { status: true, time: new Date().toISOString() },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', req.params.id)
-      .select(`*, places!place_id(id, name, images, location), users!user_id(id, name, email, phone)`)
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    updated.place = updated.places;
-    updated.user = updated.users;
-    delete updated.places;
-    delete updated.users;
-
-    res.json({
-      success: true,
-      message: 'Booking marked as completed',
-      data: updated
-    });
+    res.json({ success: true, message: 'Booking completed', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    console.error('Error completing booking:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   PUT /api/bookings/:id/cancel
-// @desc    Cancel booking (Visitor or Owner)
+// @desc    Cancel booking
 // @access  Private
 router.put('/:id/cancel', protect, async (req, res) => {
   try {
-    const { data: booking, error: fetchError } = await supabase
-      .from('bookings')
-      .select(`*, places!place_id(id, name, created_by)`)
-      .eq('id', req.params.id)
-      .single();
-
-    if (fetchError || !booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
+    const result = await query(
+      `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
-
-    const userId = req.user.id;
-    const isVisitor = booking.user_id === userId;
-
-    const { data: ownedPlace } = await supabase
-      .from('user_owned_places')
-      .select('place_id')
-      .eq('user_id', userId)
-      .eq('place_id', booking.place_id)
-      .single();
-
-    const isOwner = ownedPlace || booking.places?.created_by === userId;
-    const isAdmin = req.user.role === 'admin';
-
-    if (!isVisitor && !isOwner && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to cancel this booking'
-      });
-    }
-
-    if (booking.status === 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot cancel completed booking'
-      });
-    }
-
-    if (booking.status === 'cancelled') {
-      return res.status(400).json({
-        success: false,
-        message: 'Booking is already cancelled'
-      });
-    }
-
-    const { data: updated, error } = await supabase
-      .from('bookings')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancel_reason: req.body.reason || (isVisitor ? 'Cancelled by visitor' : 'Cancelled by owner'),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', req.params.id)
-      .select(`*, places!place_id(id, name, images, location), users!user_id(id, name, email, phone)`)
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    updated.place = updated.places;
-    updated.user = updated.users;
-    delete updated.places;
-    delete updated.users;
-
-    res.json({
-      success: true,
-      message: 'Booking cancelled successfully',
-      data: updated
-    });
+    res.json({ success: true, message: 'Booking cancelled', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -575,41 +231,32 @@ router.put('/:id/cancel', protect, async (req, res) => {
 // @access  Private
 router.put('/:id', protect, async (req, res) => {
   try {
-    const updateData = {};
-    if (req.body.status) updateData.status = req.body.status;
-    updateData.updated_at = new Date().toISOString();
+    const updateData = { ...req.body };
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .update(updateData)
-      .eq('id', req.params.id)
-      .select(`*, places!place_id(id, name, images, location), users!user_id(id, name, email, phone)`)
-      .single();
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) {
+        fields.push(`${key} = $${paramIndex++}`);
+        values.push(value);
+      }
+    }
+    fields.push(`updated_at = NOW()`);
+    values.push(req.params.id);
 
-    if (error) throw new Error(error.message);
+    const result = await query(
+      `UPDATE bookings SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
 
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: 'Booking not found'
-      });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    booking.place = booking.places;
-    booking.user = booking.users;
-    delete booking.places;
-    delete booking.users;
-
-    res.json({
-      success: true,
-      message: 'Booking updated successfully',
-      data: booking
-    });
+    res.json({ success: true, message: 'Booking updated', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

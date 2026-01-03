@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { queryAll, queryOne, query, queryCached, invalidateCache } = require('../config/neon');
 const { protect, authorize } = require('../middleware/auth');
 
 // Helper to generate slug from title
@@ -14,33 +14,21 @@ const generateSlug = (title) => {
 };
 
 // @route   GET /api/about
-// @desc    Get all about items (public) - optimized
+// @desc    Get all about items (public) - cached for performance
 // @access  Public
 router.get('/', async (req, res) => {
     try {
-        const { category, featured, limit } = req.query;
-
-        // Default limit to prevent large queries
+        const { category, limit } = req.query;
         const queryLimit = Math.min(parseInt(limit) || 30, 50);
 
-        // Minimal fields for fastest query - no count to reduce overhead
-        let query = supabase
-            .from('about_items')
-            .select('id, title, slug, description, images, category, featured, status, created_at')
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(queryLimit);
+        // Use cache for about items - only first image (full images = MB of data!)
+        const cacheKey = `about:${category || 'all'}`;
 
-        if (category && category !== 'all') {
-            query = query.eq('category', category);
-        }
-        if (featured === 'true') {
-            query = query.eq('featured', true);
-        }
-
-        const { data: items, error } = await query;
-
-        if (error) throw new Error(error.message);
+        // Select only columns that exist - new columns added via migration
+        const items = await queryCached(cacheKey,
+            `SELECT id, title, slug, short_description, content, images[1] as image, category, order_index, status, created_at 
+             FROM about_items WHERE status = 'active' ORDER BY order_index ASC, created_at DESC LIMIT $1`,
+            [queryLimit], 300000); // 5 minute cache
 
         res.json({
             success: true,
@@ -57,6 +45,36 @@ router.get('/', async (req, res) => {
     }
 });
 
+// @route   GET /api/about/admin/all
+// @desc    Get all about items for admin (cached, optimized for LIST VIEW)
+// @access  Private/Admin
+router.get('/admin/all', protect, authorize('admin'), async (req, res) => {
+    try {
+        // For LIST view: only first image (fast loading)
+        // Full data fetched separately when editing via GET /:id
+        const items = await queryCached('admin:about:all',
+            `SELECT id, title, slug, short_description, content, images[1] as image, category, order_index, status, created_at, updated_at 
+             FROM about_items ORDER BY order_index ASC, created_at DESC`,
+            [], 60000); // 1 minute cache for admin
+
+        // Format for frontend compatibility
+        const formatted = items.map(item => ({
+            ...item,
+            images: item.image ? [item.image] : [],
+            // Ensure description is populated
+            description: item.content || item.short_description || ''
+        }));
+
+        res.json({
+            success: true,
+            count: formatted.length,
+            data: formatted
+        });
+    } catch (error) {
+        console.error('Error fetching admin about items:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 // @route   GET /api/about/:id
 // @desc    Get single about item by ID or slug
@@ -64,21 +82,16 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-
-        // Check if id is UUID or slug
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-        let query = supabase.from('about_items').select('*');
-
+        let item;
         if (isUUID) {
-            query = query.eq('id', id);
+            item = await queryOne('SELECT * FROM about_items WHERE id = $1', [id]);
         } else {
-            query = query.eq('slug', id);
+            item = await queryOne('SELECT * FROM about_items WHERE slug = $1', [id]);
         }
 
-        const { data: item, error } = await query.single();
-
-        if (error || !item) {
+        if (!item) {
             return res.status(404).json({
                 success: false,
                 message: 'About item not found'
@@ -104,15 +117,7 @@ router.get('/:id', async (req, res) => {
 // @access  Admin only
 router.post('/', protect, authorize('admin'), async (req, res) => {
     try {
-        const {
-            title,
-            description,
-            images,
-            video_urls,
-            external_links,
-            category,
-            featured
-        } = req.body;
+        const { title, description, images, category, featured, video_urls, external_links, event_date } = req.body;
 
         if (!title || !description) {
             return res.status(400).json({
@@ -122,31 +127,37 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
         }
 
         const slug = generateSlug(title);
+        // Create short description from first 150 chars
+        const short_description = description.length > 150 ? description.substring(0, 147) + '...' : description;
 
-        const { data: newItem, error } = await supabaseAdmin
-            .from('about_items')
-            .insert([{
+        // Prepare arrays/objects for JSONB/Array columns
+        // Assuming video_urls is TEXT[] or JSONB, external_links is JSONB
+
+        const result = await query(
+            `INSERT INTO about_items (
+                title, slug, short_description, content, images, category, 
+                status, created_at, updated_at
+            ) 
+             VALUES ($1, $2, $3, $4, $5, $6, 'active', NOW(), NOW()) 
+             RETURNING *`,
+            [
                 title,
                 slug,
-                description,
-                images: images || [],
-                video_urls: video_urls || [],
-                external_links: external_links || [],
-                category: category || 'heritage',
-                featured: featured || false,
-                status: 'active',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
+                short_description,
+                description, // Save full description to content
+                JSON.stringify(images || []),
+                category || 'heritage',
+            ]
+        );
 
-        if (error) throw new Error(error.message);
+        invalidateCache('admin:about:all');
+        invalidateCache('about:all');
+        if (category) invalidateCache(`about:${category}`);
 
         res.status(201).json({
             success: true,
             message: 'About item created successfully',
-            data: newItem
+            data: result.rows[0]
         });
     } catch (error) {
         console.error('Error creating about item:', error);
@@ -164,53 +175,60 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 router.put('/:id', protect, authorize('admin'), async (req, res) => {
     try {
         const { id } = req.params;
-        const {
-            title,
-            description,
-            images,
-            video_urls,
-            external_links,
-            category,
-            featured,
-            status
-        } = req.body;
+        const { title, description, images, category, featured, status, video_urls, external_links, event_date } = req.body;
 
-        const updateData = {
-            updated_at: new Date().toISOString()
-        };
+        const updateFields = ['updated_at = NOW()'];
+        const values = [];
+        let paramIndex = 1;
 
         if (title) {
-            updateData.title = title;
-            updateData.slug = generateSlug(title);
+            updateFields.push(`title = $${paramIndex++}`);
+            values.push(title);
+            updateFields.push(`slug = $${paramIndex++}`);
+            values.push(generateSlug(title));
         }
-        if (description !== undefined) updateData.description = description;
-        if (images !== undefined) updateData.images = images;
-        if (video_urls !== undefined) updateData.video_urls = video_urls;
-        if (external_links !== undefined) updateData.external_links = external_links;
-        if (category !== undefined) updateData.category = category;
-        if (featured !== undefined) updateData.featured = featured;
-        if (status !== undefined) updateData.status = status;
+        if (description !== undefined) {
+            updateFields.push(`content = $${paramIndex++}`);
+            values.push(description);
+            // Also update short_description
+            updateFields.push(`short_description = $${paramIndex++}`);
+            values.push(description.length > 150 ? description.substring(0, 147) + '...' : description);
+        }
+        if (images !== undefined) {
+            updateFields.push(`images = $${paramIndex++}`);
+            values.push(JSON.stringify(images));
+        }
+        if (category !== undefined) {
+            updateFields.push(`category = $${paramIndex++}`);
+            values.push(category);
+        }
+        if (status !== undefined) {
+            updateFields.push(`status = $${paramIndex++}`);
+            values.push(status);
+        }
+        // Note: featured, video_urls, external_links, event_date removed until migration is run
 
-        const { data: updatedItem, error } = await supabaseAdmin
-            .from('about_items')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
+        values.push(id);
+        const result = await query(
+            `UPDATE about_items SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+            values
+        );
 
-        if (error) throw new Error(error.message);
-
-        if (!updatedItem) {
+        if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: 'About item not found'
             });
         }
 
+        invalidateCache('admin:about:all');
+        invalidateCache('about:all');
+        if (category) invalidateCache(`about:${category}`);
+
         res.json({
             success: true,
             message: 'About item updated successfully',
-            data: updatedItem
+            data: result.rows[0]
         });
     } catch (error) {
         console.error('Error updating about item:', error);
@@ -228,13 +246,10 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
 router.delete('/:id', protect, authorize('admin'), async (req, res) => {
     try {
         const { id } = req.params;
+        await query('DELETE FROM about_items WHERE id = $1', [id]);
 
-        const { error } = await supabaseAdmin
-            .from('about_items')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw new Error(error.message);
+        invalidateCache('admin:about:all');
+        invalidateCache('about:all');
 
         res.json({
             success: true,

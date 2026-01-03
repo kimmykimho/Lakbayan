@@ -23,11 +23,12 @@ export default function DriverTransportRequests() {
       console.log('Driver Transport Requests Response:', response.data)
       setRequests(response.data.data || [])
 
-      // Check for active request
+      // Check for active request (driver_id is set when driver accepts)
       const active = response.data.data?.find(r =>
-        r.driver && ['accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(r.status)
+        (r.driver_id || r.driver) && ['accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(r.status)
       )
       setActiveRequest(active || null)
+      console.log('Active request found:', active)
     } catch (error) {
       console.error('Failed to fetch requests:', error)
       console.error('Error details:', error.response?.data)
@@ -215,11 +216,11 @@ export default function DriverTransportRequests() {
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
                       <p className="text-beige-300 text-xs mb-1">Distance</p>
-                      <p className="text-2xl font-bold">{activeRequest.distance?.toFixed(1) || '0'} km</p>
+                      <p className="text-2xl font-bold">{parseFloat(activeRequest.distance || 0).toFixed(1)} km</p>
                     </div>
                     <div>
                       <p className="text-beige-300 text-xs mb-1">Fare</p>
-                      <p className="text-2xl font-bold">₱{activeRequest.fare?.estimated || 0}</p>
+                      <p className="text-2xl font-bold">₱{parseFloat(activeRequest.fare || 0).toFixed(0)}</p>
                     </div>
                   </div>
                 </div>
@@ -266,6 +267,62 @@ export default function DriverTransportRequests() {
           </motion.div>
         )}
 
+        {/* Navigation Map for Active Request */}
+        {activeRequest && ['accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(activeRequest.status) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-lg p-4 mb-8"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                🗺️ Navigation {activeRequest.status === 'in_progress' ? 'to Destination' : 'to Pickup'}
+              </h3>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${activeRequest.status === 'in_progress'
+                  ? `${activeRequest.destination?.coordinates?.lat},${activeRequest.destination?.coordinates?.lng}`
+                  : `${activeRequest.pickup?.coordinates?.lat},${activeRequest.pickup?.coordinates?.lng}`
+                  }&travelmode=driving`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-primary-dark text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Open in Maps
+              </a>
+            </div>
+            <div className="rounded-xl overflow-hidden" style={{ height: '300px' }}>
+              <iframe
+                title="Driver Navigation Map"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                style={{ border: 0 }}
+                src={`https://www.google.com/maps/embed/v1/directions?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&origin=${activeRequest.pickup?.coordinates?.lat || 8.96
+                  },${activeRequest.pickup?.coordinates?.lng || 125.43}&destination=${activeRequest.status === 'in_progress'
+                    ? `${activeRequest.destination?.coordinates?.lat || 8.96},${activeRequest.destination?.coordinates?.lng || 125.43}`
+                    : `${activeRequest.pickup?.coordinates?.lat || 8.96},${activeRequest.pickup?.coordinates?.lng || 125.43}`
+                  }&mode=driving`}
+                allowFullScreen
+              />
+            </div>
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 font-semibold">📍 PICKUP</p>
+                  <p className="font-semibold text-gray-900">{activeRequest.pickup?.address || 'Pickup Location'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-semibold">🎯 DESTINATION</p>
+                  <p className="font-semibold text-gray-900">{activeRequest.destination?.placeName || activeRequest.destination?.address || 'Destination'}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Filters */}
         <div className="flex gap-3 mb-6 overflow-x-auto">
           {filters.map((f) => (
@@ -273,8 +330,8 @@ export default function DriverTransportRequests() {
               key={f.value}
               onClick={() => setFilter(f.value)}
               className={`px-4 py-2 rounded-xl font-semibold whitespace-nowrap transition-all ${filter === f.value
-                  ? 'bg-primary-dark text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'bg-primary-dark text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
             >
               {f.icon} {f.label}
@@ -316,8 +373,8 @@ export default function DriverTransportRequests() {
                   </div>
 
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-beige-500">₱{request.fare?.estimated || 0}</div>
-                    <div className="text-xs text-gray-500">{request.distance?.toFixed(1) || 0} km</div>
+                    <div className="text-2xl font-bold text-beige-500">₱{parseFloat(request.fare || 0).toFixed(0)}</div>
+                    <div className="text-xs text-gray-500">{parseFloat(request.distance || 0).toFixed(1)} km</div>
                   </div>
                 </div>
 

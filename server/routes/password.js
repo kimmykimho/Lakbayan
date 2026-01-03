@@ -1,139 +1,64 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { queryOne, query } = require('../config/neon');
 const { protect } = require('../middleware/auth');
 
 // @route   POST /api/password/change
 // @desc    Change user password
-// @access  Private (All authenticated users)
+// @access  Private
 router.post('/change', protect, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    // Validate input
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password and new password are required'
-      });
+      return res.status(400).json({ success: false, message: 'Current and new password required' });
     }
 
-    // Validate new password strength
     if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters long'
-      });
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    // Get user with password from database
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, email, password')
-      .eq('id', req.user.id)
-      .single();
-
-    if (userError || !user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+    const user = await queryOne('SELECT password FROM users WHERE id = $1', [req.user.id]);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Verify current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect'
-      });
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    // Check if new password is different from current
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
-    if (isSamePassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be different from current password'
-      });
-    }
-
-    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    // Update password in database using supabaseAdmin to bypass RLS
-    const { error: updateError } = await supabaseAdmin
-      .from('users')
-      .update({
-        password: hashedPassword,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', req.user.id);
+    await query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, req.user.id]);
 
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully. Please login again with your new password.'
-    });
+    res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
     console.error('Password change error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// @route   POST /api/password/reset-request
-// @desc    Request password reset (sends reset link - placeholder for email integration)
+// @route   POST /api/password/forgot
+// @desc    Request password reset
 // @access  Public
-router.post('/reset-request', async (req, res) => {
+router.post('/forgot', async (req, res) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    // Check if user exists
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('email', email.toLowerCase())
-      .single();
+    const user = await queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
 
-    if (!user) {
-      // Don't reveal if email exists for security
-      return res.json({
-        success: true,
-        message: 'If an account with that email exists, a password reset link has been sent.'
-      });
-    }
-
-    // In a production system, you would:
-    // 1. Generate a reset token
-    // 2. Store it in the database with expiration
-    // 3. Send an email with the reset link
-
-    // For now, return success message
-    res.json({
-      success: true,
-      message: 'If an account with that email exists, a password reset link has been sent.'
-    });
+    // Always return success to prevent email enumeration
+    res.json({ success: true, message: 'If an account exists, a reset link will be sent' });
   } catch (error) {
-    console.error('Password reset request error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

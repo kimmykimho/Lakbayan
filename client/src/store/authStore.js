@@ -230,14 +230,23 @@ export const useAuthStore = create(
           const api = (await import('../services/api')).default
 
           try {
-            // Try to get existing user
-            console.log('📱 Calling /auth/me to check existing user...')
-            const response = await api.get('/auth/me')
-            console.log('📱 /auth/me response:', response.data)
+            // Optimization: Call oauth-register directly (it handles both login and registration)
+            // This avoids the double round-trip of /auth/me -> 404 -> /auth/oauth-register
+            console.log('📱 Calling /auth/oauth-register to sync user...')
+
+            const response = await api.post('/auth/oauth-register', {
+              email: supabaseUser.email,
+              name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0],
+              avatar: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture
+            })
+
+            console.log('📱 /auth/oauth-register response:', response.data)
 
             if (response.data.success) {
-              const user = response.data.data
-              localStorage.setItem('token', session.access_token)
+              const { user, token } = response.data.data
+
+              // Store our internal token
+              localStorage.setItem('token', token)
 
               set({
                 user: {
@@ -247,47 +256,17 @@ export const useAuthStore = create(
                   avatar: user.avatar,
                   role: user.role || 'tourist'
                 },
-                token: session.access_token,
-                isAuthenticated: true
+                token: token,
+                isAuthenticated: true,
+                isLoading: false
               })
               console.log('📱 User authenticated successfully:', user.email)
               return { success: true }
             }
           } catch (err) {
-            console.log('📱 User not found, registering via OAuth...', err.message)
-            // User doesn't exist, create them via backend
-            try {
-              const response = await api.post('/auth/oauth-register', {
-                email: supabaseUser.email,
-                name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0],
-                avatar: supabaseUser.user_metadata?.avatar_url,
-                supabaseId: supabaseUser.id
-              })
-              console.log('📱 OAuth register response:', response.data)
-
-              if (response.data.success) {
-                const user = response.data.data.user
-                const token = response.data.data.token
-                localStorage.setItem('token', token)
-
-                set({
-                  user: {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
-                    avatar: user.avatar,
-                    role: user.role || 'tourist'
-                  },
-                  token,
-                  isAuthenticated: true
-                })
-                console.log('📱 New user registered and authenticated:', user.email)
-                return { success: true }
-              }
-            } catch (registerErr) {
-              console.error('📱 OAuth register failed:', registerErr)
-              return { success: false, message: registerErr.message }
-            }
+            console.error('📱 Auth error:', err)
+            set({ user: null, token: null, isAuthenticated: false, isLoading: false })
+            return { success: false, message: err.response?.data?.message || 'Authentication failed' }
           }
 
           return { success: false, message: 'Failed to process OAuth login' }

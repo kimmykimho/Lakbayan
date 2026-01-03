@@ -17,6 +17,7 @@ export default function Places() {
   const [loadingNearby, setLoadingNearby] = useState(false)
   const [showNearby, setShowNearby] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
+  const [sortBy, setSortBy] = useState('popular')
 
   // Use cache store
   const { getPlaces, setPlaces: setCachedPlaces, placesLoading, setPlacesLoading } = useDataCache()
@@ -154,6 +155,7 @@ export default function Places() {
   const categories = [
     { id: 'all', name: 'All Places', icon: '🌍', count: places.length },
     { id: 'nature', name: 'Nature', icon: '🏞️', count: categoryCounts.nature || 0 },
+    { id: 'cultural', name: 'Cultural', icon: '🏛️', count: categoryCounts.cultural || 0 },
     { id: 'adventure', name: 'Adventure', icon: '🏔️', count: categoryCounts.adventure || 0 },
     { id: 'food', name: 'Food & Dining', icon: '🍽️', count: categoryCounts.food || 0 },
     { id: 'shopping', name: 'Shopping', icon: '🛍️', count: categoryCounts.shopping || 0 },
@@ -164,6 +166,17 @@ export default function Places() {
     const matchesFilter = filter === 'all' || place.category === filter
     const matchesSearch = place.name.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesFilter && matchesSearch
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case 'rating':
+        return (b.rating?.average || 0) - (a.rating?.average || 0)
+      case 'visited':
+        return (b.visitors?.total || 0) - (a.visitors?.total || 0)
+      case 'name':
+        return a.name.localeCompare(b.name)
+      default: // popular - by current visitors
+        return (b.visitors?.current || 0) - (a.visitors?.current || 0)
+    }
   })
 
   return (
@@ -262,11 +275,15 @@ export default function Places() {
             </h2>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Find your next adventure</p>
           </div>
-          <select className="px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg border-2 border-gray-200 focus:border-beige-400 focus:outline-none w-full sm:w-auto">
-            <option>Most Popular</option>
-            <option>Highest Rated</option>
-            <option>Most Visited</option>
-            <option>Nearest</option>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base rounded-lg border-2 border-gray-200 focus:border-beige-400 focus:outline-none w-full sm:w-auto"
+          >
+            <option value="popular">Most Popular</option>
+            <option value="rating">Highest Rated</option>
+            <option value="visited">Most Visited</option>
+            <option value="name">Name (A-Z)</option>
           </select>
         </div>
 
@@ -306,9 +323,14 @@ export default function Places() {
               >
                 {/* Image/Icon */}
                 <div className="h-56 relative overflow-hidden">
-                  {place.images && place.images.length > 0 ? (
+                  {(place.image || place.images?.[0]) ? (
                     <>
-                      <ImageCarousel images={place.images} className="h-full" />
+                      <img
+                        src={place.image || place.images?.[0]}
+                        alt={place.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
+                      />
                       {place.featured && (
                         <div className="absolute top-3 left-3 px-3 py-1 bg-yellow-400 text-yellow-900 rounded-full text-xs font-bold z-10">
                           ⭐ Featured
@@ -398,14 +420,7 @@ export default function Places() {
           </div>
         )}
 
-        {/* Load More */}
-        {filteredPlaces.length > 0 && !showNearby && (
-          <div className="text-center mt-12">
-            <button className="px-8 py-3 bg-white border-2 border-beige-400 text-beige-500 rounded-xl font-semibold hover:bg-beige-50 transition-all">
-              Load More Places
-            </button>
-          </div>
-        )}
+        {/* INFO: All places are loaded from database - no pagination needed */}
 
         {/* Nearby Places from Foursquare */}
         {showNearby && nearbyPlaces.length > 0 && (
@@ -482,14 +497,22 @@ export default function Places() {
 
                     {/* Actions */}
                     <div className="flex gap-2">
-                      <button className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl font-semibold hover:shadow-lg transition-all">
+                      <Link
+                        to={`/maps?lat=${place.geocodes?.main?.latitude}&lng=${place.geocodes?.main?.longitude}&name=${encodeURIComponent(place.name)}`}
+                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl font-semibold hover:shadow-lg transition-all text-center"
+                      >
                         View on Map
-                      </button>
-                      <button className="px-4 py-2.5 border-2 border-purple-500 text-purple-600 rounded-xl font-semibold hover:bg-purple-50 transition-all">
+                      </Link>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${place.geocodes?.main?.latitude},${place.geocodes?.main?.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2.5 border-2 border-purple-500 text-purple-600 rounded-xl font-semibold hover:bg-purple-50 transition-all"
+                      >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </motion.div>

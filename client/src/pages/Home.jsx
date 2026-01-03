@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import favicon from '../assets/favicon.png'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import api from '../services/api'
@@ -175,12 +176,10 @@ export default function Home() {
             className="text-center mb-6 sm:mb-8"
           >
             <div className="inline-flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-primary to-primary-dark rounded-xl sm:rounded-2xl flex items-center justify-center text-white text-2xl sm:text-3xl shadow-lg flex-shrink-0">
-                🏝️
-              </div>
+              <img src={favicon} alt="Lakbayan Logo" className="w-20 h-20 sm:w-28 sm:h-28 lg:w-32 lg:h-32 object-contain drop-shadow-xl flex-shrink-0" />
               <div className="text-left">
                 <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  <span className="hidden sm:inline">Lakbayan sa </span>
+                  <span>Lakbayan sa </span>
                   <span className="text-primary">Kitcharao</span>
                 </h1>
                 <p className="text-sm sm:text-lg md:text-xl text-gray-600 mt-0.5 sm:mt-1">Your Pocket Guide to Great Getaways</p>
@@ -207,10 +206,10 @@ export default function Home() {
                         }`}
                     >
                       {/* Background Image */}
-                      {place.images && place.images.length > 0 ? (
+                      {(place.image || place.images?.[0]) ? (
                         <div className="relative w-full h-full">
                           <img
-                            src={place.images[0]}
+                            src={place.image || place.images?.[0]}
                             alt={place.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -356,9 +355,9 @@ export default function Home() {
                 className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all cursor-pointer overflow-hidden group border border-gray-100"
               >
                 <div className="relative h-48 overflow-hidden">
-                  {place.images && place.images.length > 0 ? (
+                  {(place.image || place.images?.[0]) ? (
                     <img
-                      src={place.images[0]}
+                      src={place.image || place.images?.[0]}
                       alt={place.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       onError={(e) => {

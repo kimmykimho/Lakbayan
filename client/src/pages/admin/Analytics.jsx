@@ -148,7 +148,7 @@ export default function AdminAnalytics() {
     )
   }
 
-  const { overview, recentBookings, recentReviews, charts } = analytics
+  const { overview = {}, recentBookings = [], recentReviews = [], charts = {} } = analytics || {}
 
   // Chart data - using real data from API
   const visitorsData = {
@@ -556,7 +556,7 @@ export default function AdminAnalytics() {
                           <h3 className="text-lg font-bold text-gray-800">Full Report</h3>
                         </div>
                         <div className="prose prose-sm max-w-none text-gray-700">
-                          {aiReport.report.split('\n\n').map((section, idx) => {
+                          {(aiReport.report || '').split('\n\n').map((section, idx) => {
                             // Check if this is a header section
                             const lines = section.trim().split('\n');
                             const firstLine = lines[0].trim().toUpperCase();

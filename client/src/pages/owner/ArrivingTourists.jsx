@@ -9,45 +9,32 @@ export default function ArrivingTourists() {
   const [transportRequests, setTransportRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('active') // active, all
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // specific status
+  const [sortBy, setSortBy] = useState('newest')
 
   useEffect(() => {
     fetchTransportRequests()
 
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchTransportRequests, 10000)
+    // Poll for updates every 15 seconds (reduced frequency)
+    const interval = setInterval(fetchTransportRequests, 15000)
     return () => clearInterval(interval)
   }, [])
 
   const fetchTransportRequests = async () => {
     try {
-      setLoading(true)
-      console.log('=== FETCHING TRANSPORT REQUESTS ===')
       const response = await api.get('/transport-requests/all')
-      console.log('✅ Response received:', response.data)
 
-      if (response.data.message) {
-        console.log('📝 Message:', response.data.message)
-        if (response.data.message.includes('business owner profile')) {
-          toast.error('Please set up your business profile first in the Owner Dashboard')
-        }
+      if (response.data.message?.includes('business owner profile')) {
+        toast.error('Please set up your business profile first')
       }
 
       setTransportRequests(response.data.data || [])
-      console.log(`📊 Loaded ${response.data.data?.length || 0} transport requests`)
     } catch (error) {
-      console.error('❌ Error fetching transport requests:', error)
-      console.error('Error response:', error.response)
-
-      if (error.response?.status === 401) {
-        toast.error('Please log in to view arriving tourists')
-      } else if (error.response?.status === 403) {
-        toast.error('Access denied. This page is only for business owners.')
-      } else if (error.response?.status === 404) {
-        toast.error('Business owner profile not found. Please set up your business profile.')
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message)
-      } else {
-        toast.error('Failed to load arriving tourists. Check console for details.')
+      console.error('Error fetching requests:', error)
+      // Only show toast on specific errors to avoid spamming on poll
+      if (error.response?.status === 403 || error.response?.status === 401) {
+        toast.error('Access denied or session expired')
       }
     } finally {
       setLoading(false)
@@ -93,12 +80,32 @@ export default function ArrivingTourists() {
     return icons[status] || '📍'
   }
 
-  const filteredRequests = transportRequests.filter(request => {
-    if (filter === 'active') {
-      return ['accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(request.status)
-    }
-    return true
-  })
+  const filteredRequests = transportRequests
+    .filter(request => {
+      // 1. Primary Tab Filter
+      if (filter === 'active') {
+        if (!['accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(request.status)) return false
+      }
+
+      // 2. Search Query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchesName = request.user?.name?.toLowerCase().includes(q)
+        const matchesPlace = (request.booking?.place?.name || request.destination?.placeName || '').toLowerCase().includes(q)
+        const matchesCode = request.booking?.confirmationCode?.toLowerCase().includes(q)
+        if (!matchesName && !matchesPlace && !matchesCode) return false
+      }
+
+      // 3. Specific Status Filter
+      if (statusFilter !== 'all' && request.status !== statusFilter) return false
+
+      return true
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at || a.createdAt || 0)
+      const dateB = new Date(b.created_at || b.createdAt || 0)
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB
+    })
 
   const activeCount = transportRequests.filter(r =>
     ['accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(r.status)
@@ -134,13 +141,13 @@ export default function ArrivingTourists() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Tabs */}
       <div className="flex gap-3 mb-6">
         <button
-          onClick={() => setFilter('active')}
+          onClick={() => { setFilter('active'); setStatusFilter('all'); }}
           className={`px-6 py-3 rounded-lg font-semibold transition-all ${filter === 'active'
-              ? 'bg-beige-500 text-white shadow-lg'
-              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+            ? 'bg-beige-500 text-white shadow-lg'
+            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
             }`}
         >
           🚗 Active Arrivals ({activeCount})
@@ -148,23 +155,63 @@ export default function ArrivingTourists() {
         <button
           onClick={() => setFilter('all')}
           className={`px-6 py-3 rounded-lg font-semibold transition-all ${filter === 'all'
-              ? 'bg-beige-500 text-white shadow-lg'
-              : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+            ? 'bg-beige-500 text-white shadow-lg'
+            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
             }`}
         >
           📋 All Transports ({transportRequests.length})
         </button>
       </div>
 
+      {/* Search & Filters Toolbar */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative w-full md:w-96">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search visitor, place, or code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-beige-500 focus:border-transparent"
+          />
+        </div>
+
+        <div className="flex gap-3 w-full md:w-auto">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-beige-500 text-sm text-gray-700"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="accepted">✅ Driver Assigned</option>
+            <option value="driver_enroute">🚗 Picking Up</option>
+            <option value="arrived">👥 Visitor Boarded</option>
+            <option value="in_progress">🛣️ In Progress</option>
+            <option value="completed">🏁 Completed</option>
+            <option value="cancelled">❌ Cancelled</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-beige-500 text-sm text-gray-700"
+          >
+            <option value="newest">📅 Newest First</option>
+            <option value="oldest">📅 Oldest First</option>
+          </select>
+        </div>
+      </div>
+
       {/* Transport Requests List */}
       {filteredRequests.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl shadow-sm">
-          <div className="text-6xl mb-4">🚗</div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">No {filter === 'active' ? 'active arrivals' : 'transports'} found</h3>
-          <p className="text-gray-600 mb-4">
-            {filter === 'active'
-              ? "There are no visitors currently on their way to your places."
-              : "No transport requests yet."}
+          <div className="text-6xl mb-4">🔍</div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">No results found</h3>
+          <p className="text-gray-600">
+            Try adjusting your search or filters.
           </p>
           {transportRequests.length === 0 && (
             <div className="mt-6 p-4 bg-beige-50 border border-beige-300 rounded-lg max-w-md mx-auto">
@@ -296,7 +343,7 @@ export default function ArrivingTourists() {
                     <p className="text-xs text-gray-500 font-semibold mb-2">📊 TRIP INFO</p>
                     <p className="font-semibold text-gray-900 capitalize">{request.vehicleType}</p>
                     <p className="text-sm text-gray-600">
-                      {request.distance ? `${request.distance.toFixed(1)} km` : 'Calculating...'}
+                      {request.distance ? `${Number(request.distance).toFixed(1)} km` : 'Calculating...'}
                     </p>
                     {request.fare?.estimated && (
                       <p className="text-sm text-beige-500 font-semibold">₱{request.fare.estimated}</p>

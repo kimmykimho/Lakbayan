@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '../../store/authStore'
-import logo from '../../assets/logo.png'
+import logo from '../../assets/favicon.png'
 
 export default function OwnerLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -16,7 +16,7 @@ export default function OwnerLayout() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -103,7 +103,7 @@ export default function OwnerLayout() {
         {/* Sidebar Header */}
         <div className="p-6 border-b">
           <Link to="/" className="flex items-center gap-3">
-            <img src={logo} alt="Lakbayan sa Kitcharao" className="h-12 w-auto" />
+            <img src={logo} alt="Lakbayan sa Kitcharao" className="h-14 lg:h-16 w-auto" />
             <div>
               <h1 className="text-xl font-bold text-gray-900">Owner Panel</h1>
               <p className="text-xs text-gray-500">Manage your business</p>
@@ -134,21 +134,18 @@ export default function OwnerLayout() {
                   key={item.path}
                   to={item.path}
                   onClick={() => isMobile && setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${
-                    isActive
-                      ? 'bg-primary text-white shadow-lg'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${isActive
+                    ? 'bg-primary text-white shadow-lg'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                 >
                   {item.icon}
                   <span className="font-medium">{item.name}</span>
                   {item.badge && (
-                    <span className={`ml-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
-                      isActive ? 'bg-white/20' : 'bg-beige-300 text-beige-600'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full animate-pulse ${
-                        isActive ? 'bg-white' : 'bg-beige-400'
-                      }`}></span>
+                    <span className={`ml-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-white/20' : 'bg-beige-300 text-beige-600'
+                      }`}>
+                      <span className={`w-2 h-2 rounded-full animate-pulse ${isActive ? 'bg-white' : 'bg-beige-400'
+                        }`}></span>
                       LIVE
                     </span>
                   )}

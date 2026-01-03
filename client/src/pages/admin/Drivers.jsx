@@ -38,7 +38,7 @@ export default function AdminDrivers() {
 
   const handleApprove = async (id) => {
     try {
-      await api.put(`/drivers/applications/${id}/approve`)
+      await api.put(`/drivers/${id}/approve`)
       toast.success('Application approved! Driver role granted.')
       fetchApplications()
       setShowModal(false)
@@ -55,7 +55,7 @@ export default function AdminDrivers() {
     }
 
     try {
-      await api.put(`/drivers/applications/${id}/reject`, {
+      await api.put(`/drivers/${id}/reject`, {
         reason: rejectionReason
       })
       toast.success('Application rejected')

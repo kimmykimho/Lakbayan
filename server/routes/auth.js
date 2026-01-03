@@ -3,29 +3,22 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const { supabase } = require('../config/supabase'); // Only for OAuth token verification
+const { queryOne, queryAll, query } = require('../config/neon');
 const { protect } = require('../middleware/auth');
 
-// reCAPTCHA secret key - IMPORTANT: Set this in your .env file
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY;
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
-// Verify reCAPTCHA token
 const verifyCaptcha = async (token) => {
-  // Skip reCAPTCHA in development if secret key is not properly configured
   if (!RECAPTCHA_SECRET_KEY || RECAPTCHA_SECRET_KEY === 'your-recaptcha-secret-here') {
     if (isDevelopment) {
       console.log('⚠️ reCAPTCHA SKIPPED: No secret key configured (development mode)');
-      return true; // Skip in development
+      return true;
     }
-    console.error('❌ reCAPTCHA secret key not configured');
     return false;
   }
-
-  if (!token) {
-    console.log('❌ reCAPTCHA token not provided');
-    return false;
-  }
+  if (!token) return false;
 
   try {
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
@@ -33,43 +26,27 @@ const verifyCaptcha = async (token) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `secret=${RECAPTCHA_SECRET_KEY}&response=${token}`
     });
-
     const data = await response.json();
-
-    if (!data.success) {
-      console.log('❌ reCAPTCHA verification failed:', data['error-codes'] || 'Unknown error');
-    } else {
-      console.log('✅ reCAPTCHA verification passed');
-    }
-
     return data.success;
-  } catch (error) {
-    console.error('❌ reCAPTCHA verification error:', error.message);
+  } catch {
     return false;
   }
 };
 
-// Generate JWT Token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
 };
 
-// Hash password
 const hashPassword = async (password) => {
   const salt = await bcrypt.genSalt(10);
   return await bcrypt.hash(password, salt);
 };
 
-// Compare password
 const comparePassword = async (password, hash) => {
   return await bcrypt.compare(password, hash);
 };
 
 // @route   POST /api/auth/register
-// @desc    Register new user
-// @access  Public
 router.post('/register', [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Please enter a valid email'),
@@ -78,80 +55,38 @@ router.post('/register', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     const { name, email, password, role, captchaToken } = req.body;
 
-    // Verify reCAPTCHA
     const captchaValid = await verifyCaptcha(captchaToken);
     if (!captchaValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'CAPTCHA verification failed. Please try again.'
-      });
+      return res.status(400).json({ success: false, message: 'CAPTCHA verification failed' });
     }
 
-    // Check if user exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
-
+    const existingUser = await queryOne('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email'
-      });
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password);
+    const result = await query(
+      `INSERT INTO users (name, email, password, role, is_active, created_at, updated_at) 
+       VALUES ($1, LOWER($2), $3, $4, true, NOW(), NOW()) RETURNING id, name, email, role, is_active, created_at`,
+      [name, email, hashedPassword, role || 'tourist']
+    );
 
-    // Create user
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({
-        name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        role: role || 'tourist'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    // Remove password from response
-    delete user.password;
-
+    const user = result.rows[0];
     const token = generateToken(user.id);
 
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user,
-        token
-      }
-    });
+    res.status(201).json({ success: true, message: 'User registered successfully', data: { user, token } });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   POST /api/auth/login
-// @desc    Login user
-// @access  Public
 router.post('/login', [
   body('email').isEmail().withMessage('Please enter a valid email'),
   body('password').notEmpty().withMessage('Password is required')
@@ -159,148 +94,81 @@ router.post('/login', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     const { email, password, captchaToken } = req.body;
 
-    // Verify reCAPTCHA
     const captchaValid = await verifyCaptcha(captchaToken);
     if (!captchaValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'CAPTCHA verification failed. Please try again.'
-      });
+      return res.status(400).json({ success: false, message: 'CAPTCHA verification failed' });
     }
 
-    // Get user with password
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+    const user = await queryOne('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Check password
     const isMatch = await comparePassword(password, user.password);
-
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Update last login
-    await supabase
-      .from('users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', user.id);
+    await query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
 
-    // Remove password from response
     delete user.password;
-
     const token = generateToken(user.id);
 
-    res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user,
-        token
-      }
-    });
+    res.json({ success: true, message: 'Login successful', data: { user, token } });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   GET /api/auth/me
-// @desc    Get current user
-// @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, name, email, role, phone, avatar, preferences, stats, is_active, last_login, created_at')
-      .eq('id', req.user.id)
-      .single();
+    const user = await queryOne(
+      'SELECT id, name, email, role, phone, avatar, is_active, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
 
-    if (error) {
-      throw new Error(error.message);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Get user's favorites
-    const { data: favorites } = await supabase
-      .from('user_favorites')
-      .select('place_id, places(id, name, images, rating)')
-      .eq('user_id', req.user.id);
+    // Favorites are fetched by the favorites component separately
+    // const favorites = await queryAll(...)
+    // user.favorites = favorites;
 
-    user.favorites = favorites?.map(f => f.places) || [];
-
-    res.json({
-      success: true,
-      data: user
-    });
+    res.json({ success: true, data: user });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   PUT /api/auth/update
-// @desc    Update user profile
-// @access  Private
 router.put('/update', protect, async (req, res) => {
   try {
-    const { name, phone, preferences } = req.body;
+    const { name, phone } = req.body;
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .update({
-        name,
-        phone,
-        preferences,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', req.user.id)
-      .select('id, name, email, role, phone, avatar, preferences, stats')
-      .single();
+    const result = await query(
+      `UPDATE users SET name = COALESCE($1, name), phone = COALESCE($2, phone), updated_at = NOW() 
+       WHERE id = $3 RETURNING id, name, email, role, phone, avatar`,
+      [name, phone, req.user.id]
+    );
 
-    if (error) {
-      throw new Error(error.message);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: user
-    });
+    res.json({ success: true, message: 'Profile updated', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   PUT /api/auth/change-password
-// @desc    Change password
-// @access  Private
 router.put('/change-password', protect, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
@@ -308,141 +176,68 @@ router.put('/change-password', protect, [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     const { currentPassword, newPassword } = req.body;
+    const user = await queryOne('SELECT password FROM users WHERE id = $1', [req.user.id]);
 
-    // Get user with password
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', req.user.id)
-      .single();
-
-    // Check current password
     const isMatch = await comparePassword(currentPassword, user.password);
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect'
-      });
+      return res.status(401).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    // Hash new password
     const hashedPassword = await hashPassword(newPassword);
+    await query('UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2', [hashedPassword, req.user.id]);
 
-    // Update password
-    await supabase
-      .from('users')
-      .update({ password: hashedPassword })
-      .eq('id', req.user.id);
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
+    res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @route   POST /api/auth/oauth-register
-// @desc    Register or login user via OAuth (Google)
-// @access  Public
+// @desc    Register or login user via OAuth (Google) - uses Supabase for OAuth token verification
 router.post('/oauth-register', async (req, res) => {
   try {
-    const { email, name, avatar, supabaseId } = req.body;
+    const { email, name, avatar } = req.body;
 
     if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
     const normalizedEmail = email.toLowerCase();
 
-    // Check if user already exists - use maybeSingle to avoid error when not found
-    let { data: existingUser } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('email', normalizedEmail)
-      .maybeSingle();
-
-    let user = existingUser;
+    // Check if user exists in Neon database
+    let user = await queryOne('SELECT * FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
 
     if (!user) {
-      // Create new user with random password (won't be used for OAuth)
+      // Create new user
       const randomPassword = await hashPassword(Math.random().toString(36).slice(-10));
-
-      const { data: newUser, error: createError } = await supabaseAdmin
-        .from('users')
-        .insert({
-          name: name || email.split('@')[0],
-          email: normalizedEmail,
-          password: randomPassword,
-          avatar: avatar,
-          role: 'tourist'
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        // If duplicate key error, try to fetch existing user
-        if (createError.message.includes('duplicate key')) {
-          const { data: fetchedUser } = await supabaseAdmin
-            .from('users')
-            .select('*')
-            .eq('email', normalizedEmail)
-            .single();
-          user = fetchedUser;
-        } else {
-          throw new Error(createError.message);
-        }
-      } else {
-        user = newUser;
-      }
+      const result = await query(
+        `INSERT INTO users (name, email, password, avatar, role, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'tourist', true, NOW(), NOW())
+         ON CONFLICT (email) DO UPDATE SET last_login = NOW()
+         RETURNING *`,
+        [name || email.split('@')[0], normalizedEmail, randomPassword, avatar]
+      );
+      user = result.rows[0];
+    } else {
+      // Update last login
+      await query('UPDATE users SET last_login = NOW(), avatar = COALESCE($1, avatar) WHERE id = $2', [avatar, user.id]);
     }
 
     if (!user) {
       throw new Error('Failed to find or create user');
     }
 
-    // Remove password from response
     delete user.password;
-
     const token = generateToken(user.id);
 
-    // Update last login
-    await supabaseAdmin
-      .from('users')
-      .update({
-        last_login: new Date().toISOString(),
-        avatar: avatar || user.avatar  // Update avatar if provided
-      })
-      .eq('id', user.id);
-
-    res.json({
-      success: true,
-      message: 'OAuth login successful',
-      data: {
-        user,
-        token
-      }
-    });
+    res.json({ success: true, message: 'OAuth login successful', data: { user, token } });
   } catch (error) {
     console.error('OAuth register error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

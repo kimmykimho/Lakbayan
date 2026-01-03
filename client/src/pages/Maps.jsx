@@ -258,7 +258,7 @@ export default function Maps() {
                 >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
 
                   <MapCenter center={mapCenter} />
@@ -293,22 +293,17 @@ export default function Maps() {
                       <Popup maxWidth={280} className="custom-popup">
                         <div className="min-w-[200px] sm:min-w-[250px]">
                           {/* Place Images */}
-                          {place.images && place.images.length > 0 && (
+                          {(place.image || place.images?.[0]) && (
                             <div className="mb-2 sm:mb-3 -mx-2 -mt-2">
                               <div className="relative h-24 sm:h-32 overflow-hidden rounded-t-lg">
                                 <img
-                                  src={place.images[0]}
+                                  src={place.image || place.images?.[0]}
                                   alt={place.name}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.target.src = 'https://via.placeholder.com/280x128?text=No+Image'
                                   }}
                                 />
-                                {place.images.length > 1 && (
-                                  <div className="absolute bottom-1 sm:bottom-2 right-1 sm:right-2 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-black/60 backdrop-blur-sm text-white rounded-full text-xs font-semibold">
-                                    +{place.images.length - 1}
-                                  </div>
-                                )}
                               </div>
                             </div>
                           )}
@@ -445,10 +440,10 @@ export default function Maps() {
                       }}
                     >
                       {/* Thumbnail Image */}
-                      {place.images && place.images.length > 0 && (
+                      {(place.image || place.images?.[0]) && (
                         <div className="w-full h-24 sm:h-32 mb-2 sm:mb-3 rounded-lg overflow-hidden">
                           <img
-                            src={place.images[0]}
+                            src={place.image || place.images?.[0]}
                             alt={place.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -532,8 +527,8 @@ export default function Maps() {
             </motion.div>
           ))}
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   )
 }
 

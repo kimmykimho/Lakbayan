@@ -303,7 +303,7 @@ export default function OwnerTrackTransport() {
                     {request.driver.rating?.average && (
                       <div className="flex items-center gap-1 mt-1">
                         <span className="text-yellow-400">⭐</span>
-                        <span className="text-sm font-semibold">{request.driver.rating.average.toFixed(1)}</span>
+                        <span className="text-sm font-semibold">{Number(request.driver.rating.average || 0).toFixed(1)}</span>
                       </div>
                     )}
                   </div>
@@ -336,11 +336,11 @@ export default function OwnerTrackTransport() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Distance</span>
-                  <span className="font-semibold">{request.distance?.toFixed(1) || '0'} km</span>
+                  <span className="font-semibold">{Number(request.distance || 0).toFixed(1)} km</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Estimated Fare</span>
-                  <span className="font-bold text-beige-500">₱{request.fare?.estimated || 0}</span>
+                  <span className="font-bold text-beige-500">₱{Number(request.fare?.estimated || 0).toLocaleString()}</span>
                 </div>
                 {request.duration?.estimated && (
                   <div className="flex justify-between">

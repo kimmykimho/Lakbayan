@@ -12,6 +12,7 @@ export default function MyBookings() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [transportRequests, setTransportRequests] = useState({})
+  const [standaloneTransports, setStandaloneTransports] = useState([])
 
   // Use cache
   const { getBookings, setBookings: setCachedBookings } = useDataCache()
@@ -56,14 +57,20 @@ export default function MyBookings() {
 
       // Map transport requests by booking ID for easy lookup
       const requestsMap = {}
+      const standaloneRequests = []
+
       requests.forEach(request => {
         const bookingId = request.booking_id || request.booking?.id || request.booking?._id
         if (bookingId) {
           requestsMap[bookingId] = request
+        } else {
+          // Standalone transport request (no booking)
+          standaloneRequests.push(request)
         }
       })
 
       setTransportRequests(requestsMap)
+      setStandaloneTransports(standaloneRequests)
     } catch (error) {
       console.error('Failed to load transport requests:', error)
     }
@@ -157,6 +164,72 @@ export default function MyBookings() {
             </button>
           ))}
         </div>
+
+        {/* Standalone Transport Requests (not linked to a booking) */}
+        {standaloneTransports.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              🚗 Your Transport Requests
+              <span className="px-2 py-1 bg-primary-dark text-white text-sm rounded-full">{standaloneTransports.length}</span>
+            </h2>
+            <div className="grid gap-4">
+              {standaloneTransports.map((tr) => (
+                <motion.div
+                  key={tr.id || tr._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">🚗</span>
+                        <div>
+                          <h3 className="font-bold text-gray-900">Transport to {tr.destination?.placeName || tr.destination?.address || 'Destination'}</h3>
+                          <p className="text-sm text-gray-500">{new Date(tr.created_at || tr.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 mt-3">
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${tr.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            tr.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+                              tr.status === 'driver_enroute' ? 'bg-purple-100 text-purple-800' :
+                                tr.status === 'arrived' ? 'bg-indigo-100 text-indigo-800' :
+                                  tr.status === 'in_progress' ? 'bg-green-100 text-green-800' :
+                                    tr.status === 'completed' ? 'bg-gray-100 text-gray-800' :
+                                      'bg-red-100 text-red-800'
+                          }`}>
+                          {tr.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          {parseFloat(tr.distance || 0).toFixed(1)} km • ₱{parseFloat(tr.fare || 0).toFixed(0)}
+                        </span>
+                        {tr.driver && (
+                          <span className="text-sm text-gray-600">
+                            Driver: {tr.driver.user?.name || 'Assigned'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {['pending', 'accepted', 'driver_enroute', 'arrived', 'in_progress'].includes(tr.status) && (
+                      <Link
+                        to={`/track-transport/${tr.id || tr._id}`}
+                        className="px-4 py-2 bg-primary-dark text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Track
+                      </Link>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bookings List */}
         {filteredBookings.length === 0 ? (
