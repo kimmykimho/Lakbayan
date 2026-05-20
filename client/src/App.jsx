@@ -30,6 +30,7 @@ import AdminAnalytics from './pages/admin/Analytics'
 import AdminOwners from './pages/admin/Owners'
 import AdminDrivers from './pages/admin/Drivers'
 import AdminAbout from './pages/admin/About'
+import AssociationRules from './pages/admin/AssociationRules'
 
 // Owner Pages
 import OwnerDashboard from './pages/owner/Dashboard'
@@ -164,6 +165,7 @@ function App() {
         <Route path="owners" element={<AdminOwners />} />
         <Route path="drivers" element={<AdminDrivers />} />
         <Route path="about" element={<AdminAbout />} />
+        <Route path="association-rules" element={<AssociationRules />} />
       </Route>
 
       {/* Owner Routes */}

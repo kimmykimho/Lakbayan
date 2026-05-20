@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { queryAll, queryOne, query } = require('../config/neon');
+const { queryAll, queryOne, query, getCached, setCache } = require('../config/neon');
 const { protect, authorize } = require('../middleware/auth');
+const AssociationRuleService = require('../services/association-rules/AssociationRuleService');
 
 function getDateRange(days) {
   const end = new Date();
@@ -73,6 +74,27 @@ router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
        ORDER BY r.created_at DESC LIMIT 5`
     );
 
+    // Get top visited places (by booking count)
+    const topPlaces = await queryAll(`
+        SELECT p.name, COUNT(b.id) as booking_count, 
+               COALESCE((p.visitors->>'total')::int, 0) as total_visitors
+        FROM places p
+        LEFT JOIN bookings b ON b.place_id = p.id
+        WHERE p.status = 'active'
+        GROUP BY p.id, p.name, p.visitors
+        ORDER BY booking_count DESC, total_visitors DESC
+        LIMIT 10
+    `);
+
+    // Get category distribution
+    const categoryDistribution = await queryAll(`
+        SELECT category, COUNT(*) as count
+        FROM places
+        WHERE status = 'active' AND category IS NOT NULL
+        GROUP BY category
+        ORDER BY count DESC
+    `);
+
     // --- REAL CHART DATA ---
     const days = 7;
     const labels = getDayLabels(days);
@@ -143,6 +165,15 @@ router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
           weeklyBookings: {
             labels: labels,
             data: weeklyBookingsData
+          },
+          topPlaces: {
+            labels: (topPlaces || []).map(p => p.name),
+            data: (topPlaces || []).map(p => parseInt(p.booking_count) || 0),
+            visitors: (topPlaces || []).map(p => parseInt(p.total_visitors) || 0)
+          },
+          categoryDistribution: {
+            labels: (categoryDistribution || []).map(c => c.category),
+            data: (categoryDistribution || []).map(c => parseInt(c.count) || 0)
           }
         }
       }
@@ -351,6 +382,100 @@ router.get('/export/csv', protect, authorize('admin'), async (req, res) => {
     res.send(csv);
   } catch (error) {
     console.error('CSV export error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/analytics/association-rules
+// @desc    Get association rule analysis for tourism destinations
+// @access  Private/Admin
+router.get('/association-rules', protect, authorize('admin'), async (req, res) => {
+  try {
+    // Parse query parameters with defaults
+    const {
+      type = 'bookings',
+      minSupport = '0.1',
+      minConfidence = '0.5',
+      minLift = '1.0',
+      maxSize = '4',
+      period = '0'
+    } = req.query;
+
+    // Validate type
+    const validTypes = ['bookings', 'favorites', 'transport', 'categories'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid type '${type}'. Must be one of: ${validTypes.join(', ')}`
+      });
+    }
+
+    // Parse and validate numeric parameters
+    const parsedSupport = parseFloat(minSupport);
+    const parsedConfidence = parseFloat(minConfidence);
+    const parsedLift = parseFloat(minLift);
+    const parsedMaxSize = parseInt(maxSize);
+    const parsedPeriod = parseInt(period);
+
+    if (isNaN(parsedSupport) || parsedSupport < 0.01 || parsedSupport > 1.0) {
+      return res.status(400).json({
+        success: false,
+        message: 'minSupport must be a number between 0.01 and 1.0'
+      });
+    }
+
+    if (isNaN(parsedConfidence) || parsedConfidence < 0.01 || parsedConfidence > 1.0) {
+      return res.status(400).json({
+        success: false,
+        message: 'minConfidence must be a number between 0.01 and 1.0'
+      });
+    }
+
+    if (isNaN(parsedLift) || parsedLift < 1.0) {
+      return res.status(400).json({
+        success: false,
+        message: 'minLift must be a number greater than or equal to 1.0'
+      });
+    }
+
+    if (isNaN(parsedMaxSize) || parsedMaxSize < 2 || parsedMaxSize > 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'maxSize must be an integer between 2 and 6'
+      });
+    }
+
+    if (isNaN(parsedPeriod) || parsedPeriod < 0 || !Number.isInteger(parsedPeriod)) {
+      return res.status(400).json({
+        success: false,
+        message: 'period must be a non-negative integer'
+      });
+    }
+
+    // Check cache
+    const cacheKey = `assoc:${type}:${parsedSupport}:${parsedConfidence}:${parsedPeriod}`;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached });
+    }
+
+    // Run analysis
+    const service = new AssociationRuleService();
+    const result = await service.analyze({
+      type,
+      minSupport: parsedSupport,
+      minConfidence: parsedConfidence,
+      minLift: parsedLift,
+      maxItemsetSize: parsedMaxSize,
+      period: parsedPeriod
+    });
+
+    // Cache result for 5 minutes
+    setCache(cacheKey, result, 300000);
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Association rules error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

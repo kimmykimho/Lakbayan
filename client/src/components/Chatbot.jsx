@@ -111,9 +111,10 @@ export default function Chatbot() {
       })
 
       // Add message with isTyping flag to trigger animation
+      const botMessage = response.data?.data?.message || response.data?.response || 'No response received.'
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: response.data.response,
+        content: botMessage,
         isTyping: true // Flag to trigger typewriter animation
       }])
     } catch (error) {

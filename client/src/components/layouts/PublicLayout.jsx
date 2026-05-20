@@ -229,15 +229,15 @@ export default function PublicLayout() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              className="md:hidden flex-shrink-0"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               )}
@@ -248,116 +248,46 @@ export default function PublicLayout() {
           <AnimatePresence>
             {mobileMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="md:hidden overflow-hidden border-t"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.15 }}
+                className="md:hidden fixed right-3 top-16 z-50 flex flex-col items-center gap-4 py-4"
               >
-                <div className="py-3 space-y-1 max-h-[70vh] overflow-y-auto">
-                  {navigation.map((item) => (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium transition-all ${isActive(item.path)
-                        ? 'bg-primary text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                    >
-                      <span className="text-xl">{item.icon}</span>
-                      <span>{item.name}</span>
-                    </Link>
-                  ))}
-                  <div className="border-t pt-2 mt-2 space-y-1">
-                    {isAuthenticated ? (
-                      <>
-                        <Link
-                          to="/profile"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
-                        >
-                          <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                            {user?.name?.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="truncate">{user?.name}</span>
-                        </Link>
+                {navigation.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    title={item.name}
+                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all ${isActive(item.path)
+                      ? 'bg-primary shadow-lg'
+                      : 'bg-white/90 shadow-md'
+                      }`}
+                  >
+                    <span className="text-xl">{item.icon}</span>
+                  </Link>
+                ))}
 
-                        {/* Dashboard - Show for non-tourist roles */}
-                        {dashboardPath && (
-                          <Link
-                            to={dashboardPath}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
-                          >
-                            <span className="text-xl">📊</span>
-                            <span>Dashboard</span>
-                          </Link>
-                        )}
+                {isAuthenticated && (
+                  <MobileProfileBranch
+                    user={user}
+                    dashboardPath={dashboardPath}
+                    onClose={() => setMobileMenuOpen(false)}
+                    onLogout={() => { setMobileMenuOpen(false); confirmLogout(); }}
+                  />
+                )}
 
-                        {/* Favorites */}
-                        <Link
-                          to="/favorites"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
-                        >
-                          <span className="text-xl">❤️</span>
-                          <span>My Favorites</span>
-                        </Link>
-
-                        {/* Bookings */}
-                        <Link
-                          to="/my-bookings"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-all"
-                        >
-                          <span className="text-xl">📅</span>
-                          <span>My Bookings</span>
-                        </Link>
-
-                        {/* Apply in Lakbayan - Only show for tourists */}
-                        {user?.role === 'tourist' && (
-                          <Link
-                            to="/apply"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 font-medium transition-all"
-                          >
-                            <span className="text-xl">🚀</span>
-                            <span>Apply in Lakbayan</span>
-                          </Link>
-                        )}
-
-                        <button
-                          onClick={() => {
-                            setMobileMenuOpen(false)
-                            confirmLogout()
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-all"
-                        >
-                          <span className="text-xl">🚪</span>
-                          <span>Logout</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <Link
-                          to="/login"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block px-4 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-all"
-                        >
-                          Login
-                        </Link>
-                        <Link
-                          to="/register"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block px-4 py-2.5 bg-primary text-white rounded-lg font-medium text-center transition-all"
-                        >
-                          Sign Up
-                        </Link>
-                      </>
-                    )}
-                  </div>
-                </div>
+                {!isAuthenticated && (
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    title="Login"
+                    className="w-12 h-12 flex items-center justify-center rounded-full bg-white/90 shadow-md"
+                  >
+                    <span className="text-xl">👤</span>
+                  </Link>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -490,6 +420,59 @@ export default function PublicLayout() {
 
       {/* Kitcharao Chatbot - Only show for logged in users */}
       {isAuthenticated && <Chatbot />}
+    </div>
+  )
+}
+
+/* Mobile Profile Branch - expands sub-icons to the left when profile is tapped */
+function MobileProfileBranch({ user, dashboardPath, onClose, onLogout }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="relative">
+      {/* Profile icon */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-12 h-12 flex items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark shadow-md"
+      >
+        <span className="text-white font-bold text-sm">{user?.name?.charAt(0).toUpperCase()}</span>
+      </button>
+
+      {/* Branch icons - expand to the left */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, x: 10, scale: 0.8 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 10, scale: 0.8 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-14 top-0 flex items-center gap-2"
+          >
+            <Link to="/profile" onClick={onClose} title="Profile"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md">
+              <span className="text-lg">👤</span>
+            </Link>
+            {dashboardPath && (
+              <Link to={dashboardPath} onClick={onClose} title="Dashboard"
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md">
+                <span className="text-lg">📊</span>
+              </Link>
+            )}
+            <Link to="/favorites" onClick={onClose} title="Favorites"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md">
+              <span className="text-lg">❤️</span>
+            </Link>
+            <Link to="/my-bookings" onClick={onClose} title="Bookings"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md">
+              <span className="text-lg">📅</span>
+            </Link>
+            <button onClick={onLogout} title="Logout"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-md">
+              <span className="text-lg">🚪</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

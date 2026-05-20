@@ -368,6 +368,46 @@ export default function AdminAnalytics() {
           </div>
         </motion.div>
 
+        {/* Most Visited Places */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-white p-6 rounded-2xl shadow-md"
+        >
+          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <span>🏆</span>
+            Most Visited Places
+          </h3>
+          <div className="h-80">
+            <Bar
+              data={{
+                labels: charts?.topPlaces?.labels || ['No Data'],
+                datasets: [
+                  {
+                    label: 'Bookings',
+                    data: charts?.topPlaces?.data || [0],
+                    backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                  },
+                  {
+                    label: 'Total Visitors',
+                    data: charts?.topPlaces?.visitors || [0],
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                  }
+                ]
+              }}
+              options={{
+                ...chartOptions,
+                indexAxis: 'y',
+                plugins: {
+                  ...chartOptions.plugins,
+                  legend: { position: 'top' }
+                }
+              }}
+            />
+          </div>
+        </motion.div>
+
         {/* Recent Activity */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
