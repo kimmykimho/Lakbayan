@@ -95,6 +95,51 @@ export default function AssociationRules() {
 
   const { stats, frequentItemsets = [], rules = [], correlationMatrix, recommendations = [], warning, suggestedMinSupport, deepInsights } = data || {}
 
+  const downloadCSV = () => {
+    if (!data) return
+    
+    let csv = 'ASSOCIATION RULE MINING RESULTS\n'
+    csv += `Analysis Type,${stats?.analysisType || ''}\n`
+    csv += `Period,${stats?.period || ''}\n`
+    csv += `Total Transactions,${stats?.totalTransactions || 0}\n`
+    csv += `Destinations Analyzed,${stats?.uniqueItems || 0}\n`
+    csv += `Rules Found,${stats?.totalRules || 0}\n\n`
+
+    // Frequent Itemsets
+    csv += 'FREQUENT DESTINATION GROUPS\n'
+    csv += 'Destinations,Support %,Count\n'
+    frequentItemsets.forEach(is => {
+      csv += `"${(is.itemNames || is.items).join(' + ')}",${(is.support * 100).toFixed(1)},${is.count}\n`
+    })
+
+    // Association Rules
+    csv += '\nASSOCIATION RULES\n'
+    csv += 'Antecedent,Consequent,Support %,Confidence %,Lift,Conviction\n'
+    rules.forEach(r => {
+      csv += `"${r.antecedent.join(', ')}","${r.consequent.join(', ')}",${(r.support * 100).toFixed(1)},${(r.confidence * 100).toFixed(1)},${r.lift.toFixed(2)},${r.conviction === Infinity ? 'Inf' : r.conviction.toFixed(2)}\n`
+    })
+
+    // Correlation Matrix
+    if (correlationMatrix && correlationMatrix.labels?.length > 0) {
+      csv += '\nCORRELATION MATRIX\n'
+      csv += ',' + correlationMatrix.labels.join(',') + '\n'
+      correlationMatrix.labels.forEach((label, i) => {
+        csv += label + ',' + correlationMatrix.matrix[i].map(v => v.toFixed(3)).join(',') + '\n'
+      })
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `data_processing_${stats?.analysisType || 'analysis'}_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('CSV downloaded')
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -103,6 +148,17 @@ export default function AssociationRules() {
           <h2 className="text-3xl font-bold text-gray-900">Data Processing</h2>
           <p className="text-gray-600 mt-1">Association rule mining on tourist behavior data</p>
         </div>
+        {data && !warning && (
+          <button
+            onClick={downloadCSV}
+            className="px-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export CSV
+          </button>
+        )}
       </div>
 
       {/* Parameters */}
